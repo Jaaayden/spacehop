@@ -57,9 +57,13 @@ jobs:
           path: dist
       - name: Run the program on a real desktop
         shell: pwsh
+        timeout-minutes: 6
         run: |
-          $p = Start-Process -FilePath dist\SpaceHop-amd64.exe -ArgumentList '--selftest', 'selftest-out' -Wait -PassThru
+          $p = Start-Process -FilePath dist\SpaceHop-amd64.exe -ArgumentList '--selftest', 'selftest-out' -PassThru
+          $done = $p.WaitForExit(240000)
+          if (-not $done) { $p.Kill() }
           if (Test-Path selftest-out\report.txt) { Get-Content selftest-out\report.txt -Encoding UTF8 }
+          if (-not $done) { Write-Host 'the self-test did not exit'; exit 3 }
           exit $p.ExitCode
       - uses: actions/upload-artifact@v4
         if: always()

@@ -77,6 +77,7 @@ func (t *selfTest) logf(status, name, format string, args ...any) {
 		t.failed++
 	}
 	t.mu.Unlock()
+	t.write() // keep the file current, so a hang still leaves a report
 }
 
 func (t *selfTest) check(name string, ok bool, format string, args ...any) bool {
@@ -173,8 +174,11 @@ func SelfTest(out, version string) int {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for a.kbHook == 0 { // wait for the message loop to be ready
-			wait(20)
+		for i := 0; a.kbHook == 0; i++ { // wait for the message loop to be ready
+			if wait(20); i > 500 {
+				t.logf("FAIL", "start", "the keyboard hook was never installed")
+				os.Exit(2)
+			}
 		}
 		wait(300)
 		t.run()
@@ -185,7 +189,7 @@ func SelfTest(out, version string) int {
 		case <-done:
 		case <-time.After(150 * time.Second):
 			t.logf("FAIL", "timeout", "the self-test did not finish in time")
-			t.write()
+			_ = exec.Command("taskkill", "/F", "/IM", "notepad.exe").Run()
 			os.Exit(2)
 		}
 	}()

@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpaceHop</title>
+<link rel="icon" href="/icon.png">
+<style>
+:root{
+  --bg:#f3f3ef; --surface:#fff; --raised:#f8f8f5; --line:#e2e3dd; --line2:#d2d4cc;
+  --text:#191b1f; --muted:#6c727d; --faint:#9aa0aa;
+  --accent:#c4f236; --accent-ink:#141a03; --accent-text:#48760a; --accent-soft:#eef8cf;
+  --danger:#d23f31; --warn:#b26a00; --warn-soft:#fff3dc;
+  --key:#fff; --key-edge:#cfd2c9; --shadow:0 1px 2px rgba(20,24,10,.06),0 8px 24px rgba(20,24,10,.08);
+  --r:12px; --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0e1013; --surface:#15171c; --raised:#1b1e24; --line:#272b33; --line2:#353a45;
+  --text:#e9ebef; --muted:#8b919d; --faint:#636a76;
+  --accent:#c8f53c; --accent-ink:#141a03; --accent-text:#c8f53c; --accent-soft:#232b10;
+  --danger:#ff6f61; --warn:#f0b24a; --warn-soft:#2c2414;
+  --key:#23272f; --key-edge:#3a404c; --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+  color-scheme:dark;
+}}
+:root[data-theme=dark]{
+  --bg:#0e1013; --surface:#15171c; --raised:#1b1e24; --line:#272b33; --line2:#353a45;
+  --text:#e9ebef; --muted:#8b919d; --faint:#636a76;
+  --accent:#c8f53c; --accent-ink:#141a03; --accent-text:#c8f53c; --accent-soft:#232b10;
+  --danger:#ff6f61; --warn:#f0b24a; --warn-soft:#2c2414;
+  --key:#23272f; --key-edge:#3a404c; --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+::selection{background:var(--accent);color:var(--accent-ink)}
+.mono{font-family:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:216px 1fr;height:100%}
+.rail{display:flex;flex-direction:column;padding:18px 12px 14px;border-right:1px solid var(--line);background:var(--surface)}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px}
+.brand img{width:34px;height:34px;border-radius:9px}
+.brand b{font-size:16px;letter-spacing:-.01em}
+.brand span{display:block;font-size:11px;color:var(--muted);margin-top:-2px}
+.nav{position:relative;display:flex;flex-direction:column;gap:2px}
+.nav button{position:relative;z-index:1;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border:0;border-radius:9px;background:none;color:var(--muted);text-align:left;transition:color .15s}
+.nav button:hover{color:var(--text)}
+.nav button.on{color:var(--text);font-weight:600}
+.nav button .n{margin-left:auto;font-size:11px;font-weight:500;color:var(--faint)}
+.nav i.pill{position:absolute;left:0;right:0;top:0;height:36px;border-radius:9px;background:var(--raised);border:1px solid var(--line);transition:transform .22s var(--ease)}
+.nav i.pill::before{content:"";position:absolute;left:-1px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--accent)}
+.rail .grow{flex:1}
+.power{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--raised)}
+.power b{display:block;font-size:13px}
+.power small{color:var(--muted);font-size:11px}
+.main{position:relative;overflow:hidden}
+.page{position:absolute;inset:0;overflow:auto;padding:26px 32px 60px;animation:page .22s var(--ease)}
+@keyframes page{from{opacity:0;transform:translateY(6px)}}
+.page>header{display:flex;align-items:flex-end;gap:16px;margin-bottom:18px}
+.page h1{margin:0;font-size:22px;letter-spacing:-.02em}
+.page header p{margin:2px 0 0;color:var(--muted)}
+.page header .sp{flex:1}
+
+/* ---------- controls ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);white-space:nowrap;transition:transform .08s,background .15s,border-color .15s}
+.btn:hover{background:var(--raised)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);border-color:transparent;color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.btn.ghost:hover{background:var(--raised);color:var(--text)}
+.btn.danger{color:var(--danger)}
+.btn.sm{height:28px;padding:0 9px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.45;pointer-events:none}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field>label,.label{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.field small,.hint{color:var(--muted);font-size:12px}
+input[type=text],input[type=number],input[type=search],textarea,select{width:100%;height:36px;padding:0 11px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);outline:0;transition:border-color .15s,box-shadow .15s}
+textarea{height:auto;min-height:84px;padding:9px 11px;resize:vertical;line-height:1.5}
+input:focus,textarea:focus,select:focus,.rec:focus{border-color:var(--accent-text);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+.sw{position:relative;flex:none;width:38px;height:22px;border:0;border-radius:11px;background:var(--line2);transition:background .18s;padding:0}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s var(--ease)}
+.sw.on{background:var(--accent)}
+.sw.on::after{transform:translateX(16px);background:var(--accent-ink)}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:var(--raised);border:1px solid var(--line)}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:7px;background:none;color:var(--muted);transition:background .15s,color .15s}
+.seg button.on{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.card+.card{margin-top:14px}
+.card h3{margin:0 0 4px;font-size:15px}
+.card>p{margin:0 0 14px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:14px;padding:11px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:600}
+.row .t small{color:var(--muted)}
+.row input[type=number]{width:96px}
+.row select{width:auto;min-width:150px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;background:var(--raised);border:1px solid var(--line);font-size:12px;color:var(--muted);white-space:nowrap}
+.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.chip.acc{background:var(--accent-soft);border-color:transparent;color:var(--accent-text)}
+.chip button{border:0;background:none;padding:0;margin-right:-3px;color:inherit;opacity:.6;line-height:1}
+.chip button:hover{opacity:1}
+
+/* ---------- key caps ---------- */
+kbd{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 7px;border-radius:7px;background:var(--key);border:1px solid var(--key-edge);border-bottom-width:2.5px;font:600 12px/1 "Cascadia Mono",Consolas,"SF Mono",ui-monospace,monospace;color:var(--text);white-space:nowrap}
+kbd.lead{background:var(--accent);border-color:color-mix(in srgb,var(--accent) 60%,#000);color:var(--accent-ink)}
+.keys{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.keys .gt{color:var(--faint);font-size:12px}
+
+/* ---------- keyboard map ---------- */
+.map{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px 18px;margin-bottom:16px}
+.maphead{display:flex;align-items:center;gap:10px;margin-bottom:12px;min-height:30px}
+.leaders{display:flex;gap:6px}
+.leaders button{display:flex;align-items:center;gap:7px;height:30px;padding:0 10px 0 4px;border:1px solid var(--line);border-radius:15px;background:var(--raised);color:var(--muted);transition:border-color .15s,color .15s}
+.leaders button.on{border-color:var(--accent-text);color:var(--text)}
+.leaders button kbd{height:22px;min-width:22px;font-size:11px;border-radius:11px;border-bottom-width:1px}
+.crumbs{display:flex;align-items:center;gap:5px;margin-left:6px}
+.crumbs button{border:0;background:none;padding:0}
+.crumbs .gt{color:var(--faint)}
+.maphead .tip{margin-left:auto;color:var(--muted);font-size:12px}
+.kb{--u:calc((100% - 14 * 5px) / 15);display:flex;flex-direction:column;gap:5px;max-width:860px;margin:0 auto}
+.kb .r{display:flex;gap:5px}
+.k{position:relative;flex:var(--w,1) 1 0;min-width:0;height:50px;padding:6px 7px;border-radius:9px;border:1px solid var(--key-edge);border-bottom-width:3px;background:var(--key);text-align:left;overflow:hidden;transition:transform .09s,border-color .15s,background .15s,box-shadow .15s;animation:kin .28s var(--ease) backwards;animation-delay:calc(var(--i) * 6ms)}
+@keyframes kin{from{opacity:0;transform:translateY(4px) scale(.96)}}
+.k.fn{height:30px}
+.k b{display:block;font:600 11px/1 "Cascadia Mono",Consolas,ui-monospace,monospace;color:var(--faint)}
+.k span{position:absolute;left:7px;right:5px;bottom:6px;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k:not(.dead):hover{transform:translateY(-1px);border-color:var(--accent-text)}
+.k:not(.dead):active{transform:translateY(1.5px);border-bottom-width:1.5px}
+.k.dead{opacity:.38;cursor:default;background:none}
+.k.has{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent-text) 45%,var(--key-edge))}
+.k.has b{color:var(--accent-text)}
+.k.grp::after{content:attr(data-n);position:absolute;right:5px;top:4px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font:700 10px/15px "Cascadia Mono",Consolas,monospace;text-align:center}
+.k.off span{text-decoration:line-through;color:var(--faint)}
+.k.lead{background:var(--accent);border-color:color-mix(in srgb,var(--accent) 60%,#000);cursor:default;opacity:1}
+.k.lead b,.k.lead span{color:var(--accent-ink)}
+.k.lead span{font-weight:600}
+.k.sel{box-shadow:0 0 0 2px var(--accent-text)}
+
+/* ---------- binding list ---------- */
+.tools{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.search{position:relative;flex:1;max-width:340px}
+.search svg{position:absolute;left:10px;top:10px;color:var(--faint)}
+.search input{padding-left:32px}
+.tools .sp{flex:1}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.b{display:grid;grid-template-columns:22px minmax(120px,auto) 1fr auto auto 38px;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid var(--line);cursor:pointer;transition:background .12s}
+.b:first-child{border-top:0}
+.b:hover{background:var(--raised)}
+.b.cur{background:var(--accent-soft)}
+.b.dis .what,.b.dis .keys{opacity:.45}
+.b .ck{width:16px;height:16px;border:1.5px solid var(--line2);border-radius:5px;opacity:0;transition:opacity .12s;display:grid;place-items:center;padding:0;background:none}
+.b:hover .ck,.b .ck.on,.list.picking .ck{opacity:1}
+.b .ck.on{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.b .ck svg{width:11px;height:11px;stroke-width:3;visibility:hidden}
+.b .ck.on svg{visibility:visible}
+.what{display:flex;align-items:center;gap:9px;min-width:0}
+.what .ic{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--raised);color:var(--muted);flex:none}
+.what b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.what small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.b .meta{display:flex;gap:6px;align-items:center}
+.b .uses{font-size:12px;color:var(--faint);min-width:34px;text-align:right}
+.empty{padding:44px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+.more{display:block;width:100%;padding:10px;border:0;border-top:1px solid var(--line);background:none;color:var(--accent-text)}
+.bulk{position:absolute;left:50%;bottom:22px;transform:translate(-50%,80px);display:flex;align-items:center;gap:6px;padding:7px 8px 7px 16px;border-radius:14px;background:var(--text);color:var(--bg);box-shadow:var(--shadow);transition:transform .25s var(--ease);z-index:5}
+.bulk.on{transform:translate(-50%,0)}
+.bulk .btn{background:none;border-color:transparent;color:inherit}
+.bulk .btn:hover{background:color-mix(in srgb,var(--bg) 14%,transparent)}
+.bulk span{margin-right:8px;font-weight:600}
+
+/* ---------- drawer & dialogs ---------- */
+.scrim{position:absolute;inset:0;background:rgba(10,12,8,.32);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(480px,100%);display:flex;flex-direction:column;background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);transform:translateX(102%);transition:transform .26s var(--ease);z-index:11}
+.drawer.on{transform:none}
+.drawer>header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.drawer>header h2{margin:0;font-size:16px;flex:1}
+.drawer .body{flex:1;overflow:auto;padding:18px 20px}
+.drawer>footer{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--line)}
+.drawer>footer .sp{flex:1}
+.rec{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:44px;padding:8px 10px;border:1px dashed var(--line2);border-radius:10px;background:var(--raised);outline:0;cursor:text}
+.rec.live{border-style:solid;border-color:var(--accent-text);background:var(--accent-soft)}
+.rec .ph{color:var(--muted);font-size:13px}
+.rec .x{margin-left:auto}
+.types{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.types button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;color:var(--muted);transition:border-color .15s,color .15s,transform .08s}
+.types button:hover{color:var(--text)}
+.types button:active{transform:scale(.96)}
+.types button.on{border-color:var(--accent-text);background:var(--accent-soft);color:var(--text);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.tiles button{position:relative;aspect-ratio:16/10;border:1px solid var(--line2);border-radius:7px;background:var(--raised);padding:0;overflow:hidden}
+.tiles button i{position:absolute;background:var(--line2);border-radius:3px;transition:background .15s}
+.tiles button.on{border-color:var(--accent-text)}
+.tiles button.on i,.tiles button:hover i{background:var(--accent)}
+.note{display:flex;gap:9px;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px;margin-bottom:14px}
+.note.info{background:var(--raised);color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inline{display:flex;gap:8px;align-items:center}
+.inline>input{flex:1}
+.dialog{position:absolute;left:50%;top:50%;width:min(560px,92%);max-height:82%;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);transform:translate(-50%,-46%) scale(.97);opacity:0;pointer-events:none;transition:transform .2s var(--ease),opacity .16s;z-index:21}
+.dialog.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+.dialog header{padding:16px 18px 10px}
+.dialog header h2{margin:0 0 10px;font-size:16px}
+.dialog .body{overflow:auto;padding:0 8px 8px;min-height:120px}
+.dialog footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+.scrim.top{z-index:20}
+.pick{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:9px;background:none;text-align:left}
+.pick:hover,.pick.cur{background:var(--raised)}
+.pick b{font-weight:600}
+.pick small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick .t{min-width:0;flex:1}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,60px);padding:9px 16px;border-radius:11px;background:var(--text);color:var(--bg);box-shadow:var(--shadow);opacity:0;transition:transform .25s var(--ease),opacity .2s;z-index:40;max-width:80%;pointer-events:none}
+.toast.on{transform:translate(-50%,0);opacity:1}
+.toast.err{background:var(--danger);color:#fff}
+
+/* ---------- leaders page ---------- */
+.lane{display:flex;align-items:center;gap:6px;height:38px;margin-top:10px;padding:0 10px;border-radius:9px;background:var(--raised);font-size:12px;color:var(--muted);overflow:hidden}
+.lane .band{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:7px;background:var(--accent-soft);color:var(--accent-text)}
+.lane kbd{height:20px;min-width:20px;font-size:11px;border-bottom-width:1.5px}
+
+/* ---------- hint preview ---------- */
+.stage{position:relative;aspect-ratio:16/9;border-radius:14px;border:1px solid var(--line);overflow:hidden;background:linear-gradient(135deg,#31404f,#1c2430 55%,#2a2f3f);user-select:none;touch-action:none}
+.stage.light{background:linear-gradient(135deg,#dfe7ee,#f4efe6 55%,#e5e9f2)}
+.stage .bar{position:absolute;left:0;right:0;bottom:0;height:5.5%;background:rgba(20,24,30,.55);backdrop-filter:blur(6px)}
+.stage.light .bar{background:rgba(255,255,255,.6)}
+.hintbox{position:absolute;transform:translate(-50%,0);padding:8px 9px 6px;border-radius:9px;background:#16181d;border:1px solid #2e323c;color:#e9ebef;box-shadow:0 10px 26px rgba(0,0,0,.35);cursor:grab;font-size:10px;line-height:1;transition:box-shadow .15s}
+.hintbox.light{background:#fbfbf9;border-color:#d9dbdf;color:#1b1d22}
+.hintbox:active{cursor:grabbing;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.hintbox .hd{display:flex;gap:3px;align-items:center;padding-bottom:6px;margin-bottom:5px;border-bottom:1px solid #2e323c}
+.hintbox.light .hd{border-color:#d9dbdf}
+.hintbox .cols{display:grid;gap:0 12px}
+.hintbox .it{display:flex;align-items:center;gap:6px;height:20px;white-space:nowrap;overflow:hidden}
+.hintbox .it.dim{opacity:.5}
+.hintbox .it i{margin-left:auto;font-style:normal;color:#c8f53c}
+.hintbox.light .it i{color:#4a7a00}
+.hintbox u{display:inline-grid;place-items:center;min-width:15px;height:15px;padding:0 4px;border-radius:4px;background:#282c36;border:1px solid #3d4350;text-decoration:none;font:600 8.5px/1 Consolas,monospace}
+.hintbox.light u{background:#fff;border-color:#c9ccd3}
+.hintbox .ft{margin-top:5px;font-size:8.5px;opacity:.5}
+.cols2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:980px){.cols2{grid-template-columns:1fr}}
+input[type=range]{width:160px;accent-color:var(--accent-text)}
+
+/* ---------- activity ---------- */
+.log{font-size:13px}
+.log .e{display:grid;grid-template-columns:96px 78px 1fr auto;gap:12px;padding:7px 14px;border-top:1px solid var(--line);align-items:center;animation:page .2s var(--ease)}
+.log .e:first-child{border-top:0}
+.log .e time,.log .e .app{color:var(--muted)}
+.tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;background:var(--raised);color:var(--muted)}
+.tag.run{background:var(--accent-soft);color:var(--accent-text)}
+.stat{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.cmds{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}
+.cmds code{padding:2px 7px;border-radius:6px;background:var(--raised);border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><img src="/icon.png" alt=""><div><b>SpaceHop</b><span id="ver"></span></div></div>
+    <nav class="nav" id="nav"><i class="pill"></i></nav>
+    <div class="grow"></div>
+    <div class="power"><button class="sw" id="power" aria-label="启用"></button><div><b id="powerT"></b><small id="powerS"></small></div></div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"></aside>
+<div class="scrim top" id="scrim2"></div>
+<div class="dialog" id="dialog"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ---------- helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const token = (location.hash.match(/t=([0-9a-f]+)/) || [])[1] || "";
+async function api(path, method = "GET", body) {
+  const r = await fetch(path, {method, headers: {"X-Token": token, "Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body)});
+  const j = await r.json().catch(() => ({error: "服务没有响应"}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+let toastT;
+function toast(msg, err) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "toast on" + (err ? " err" : "");
+  clearTimeout(toastT); toastT = setTimeout(() => t.className = "toast" + (err ? " err" : ""), err ? 4200 : 1800);
+}
+const ICON = {
+  keys: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/>',
+  leader: '<path d="M5 15h14a2 2 0 0 0 2-2V9"/><path d="M3 9v4a2 2 0 0 0 2 2"/><path d="M9 6l3-3 3 3"/>',
+  hint: '<rect x="3" y="4" width="18" height="12" rx="2.5"/><path d="M7 20h10M7 9h4M7 12h7"/>',
+  general: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  activity: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
+  about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>', check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', more: '<path d="M5 12h.01M12 12h.01M19 12h.01"/>',
+  play: '<path d="M7 5l12 7-12 7z"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  down: '<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>', up: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>', warn: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  openApp: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18"/>', openURL: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+  openFile: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', executeFile: '<path d="M6 3h8l4 4v14H6z"/><path d="M10 11l4 2.5-4 2.5z"/>',
+  runCommand: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 9l3 3-3 3M13 15h4"/>', keystroke: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M7 10h.01M12 10h.01M17 10h.01M8 14h8"/>',
+  insertText: '<path d="M5 6h14M12 6v13M9 19h6"/>', menu: '<path d="M4 6h16M4 12h10M4 18h13"/>', window: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M12 4v16"/>',
+  inputMethod: '<path d="M4 6h9M8.5 4v2c0 4-2 7-5 9M6 10c1.5 2.5 4 4.500 7 5.500M13 20l4-9 4 9M14.500 17h5"/>', notify: '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.500 2h-15zM10 20a2 2 0 0 0 4 0"/>', system: '<path d="M12 3v9"/><path d="M6.300 7a8 8 0 1 0 11.400 0"/>',
+};
+const ico = n => `<svg class="i" viewBox="0 0 24 24">${ICON[n] || ""}</svg>`;
+const TYPES = [["openApp","打开程序"],["openURL","打开网址"],["openFile","文件 / 文件夹"],["executeFile","运行文件"],["runCommand","运行命令"],["keystroke","模拟按键"],["insertText","插入文本"],["menu","菜单命令"],["window","窗口"],["inputMethod","输入法"],["notify","通知"],["system","系统"]];
+const TYPE_NAME = Object.fromEntries(TYPES);
+const FRONT_TYPES = new Set(["keystroke","insertText","menu","window","inputMethod"]);
+const KEY_SHOW = {Backspace:"⌫", Enter:"↵", Left:"←", Right:"→", Up:"↑", Down:"↓", Space:"Space"};
+const kcap = (k, cls = "") => `<kbd class="${cls}">${esc(KEY_SHOW[k] || k)}</kbd>`;
+const chordCaps = (c, cls = "") => c.split("+").map(k => kcap(k, cls)).join("");
+
+// Physical key (event.code) to SpaceHop key name, independent of layout.
+const CODE = {Space:"Space",Backspace:"Backspace",Tab:"Tab",Enter:"Enter",Escape:"Esc",CapsLock:"CapsLock",PageUp:"PageUp",PageDown:"PageDown",End:"End",Home:"Home",ArrowLeft:"Left",ArrowUp:"Up",ArrowRight:"Right",ArrowDown:"Down",Insert:"Insert",Delete:"Delete",PrintScreen:"PrintScreen",Semicolon:";",Equal:"=",Comma:",",Minus:"-",Period:".",Slash:"/",Backquote:"`",BracketLeft:"[",Backslash:"\\",BracketRight:"]",Quote:"'",ContextMenu:"Menu",Pause:"Pause",ScrollLock:"ScrollLock",NumLock:"NumLock",NumpadMultiply:"Num*",NumpadAdd:"Num+",NumpadSubtract:"Num-",NumpadDecimal:"Num.",NumpadDivide:"Num/",NumpadEnter:"Enter",
+  ShiftLeft:"LShift",ShiftRight:"RShift",ControlLeft:"LCtrl",ControlRight:"RCtrl",AltLeft:"LAlt",AltRight:"RAlt",MetaLeft:"Win",MetaRight:"RWin"};
+function keyOf(e) {
+  const c = e.code;
+  if (CODE[c]) return CODE[c];
+  let m;
+  if ((m = /^Key([A-Z])$/.exec(c))) return m[1];
+  if ((m = /^Digit(\d)$/.exec(c))) return m[1];
+  if ((m = /^Numpad(\d)$/.exec(c))) return "Num" + m[1];
+  if ((m = /^F(\d{1,2})$/.exec(c))) return c;
+  return "";
+}
+const isMod = k => /^(L|R)?(Shift|Ctrl|Alt)$|^R?Win$/.test(k);
+function chordOf(e) {
+  const k = keyOf(e);
+  if (!k || isMod(k)) return "";
+  return [e.ctrlKey && "Ctrl", e.shiftKey && "Shift", e.altKey && "Alt", e.metaKey && "Win", k].filter(Boolean).join("+");
+}
+
+// ---------- state ----------
+const S = {st: null, cfg: null, page: "keys", leader: "", path: [], q: "", sel: new Set(), shown: 200, draft: null, apps: null, layouts: null, rec: null, log: {on: false, entries: [], timer: 0}};
+const PAGES = [["keys","快捷键"],["leader","引导键"],["hint","提示窗"],["general","通用"],["activity","活动"],["about","关于"]];
+const leaderOf = b => S.cfg.leaders.find(l => l.id === b.leader) || S.cfg.leaders[0];
+const curLeader = () => S.cfg.leaders.find(l => l.id === S.leader) || S.cfg.leaders[0];
+
+async function save(cfg, quiet) {
+  try {
+    const r = await api("/api/config", "PUT", cfg);
+    S.cfg = r.config; S.st.config = r.config;
+    if (!quiet) toast("已保存");
+    renderRail();
+    return true;
+  } catch (e) { toast(e.message, true); return false; }
+}
+let saveT;
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(() => save(S.cfg, true), 350); }
+
+// ---------- labels ----------
+const base = p => { p = String(p || "").replace(/[\\/]+$/, ""); const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"), p.lastIndexOf("!")); return p.slice(i + 1).replace(/\.(exe|lnk)$/i, ""); };
+const tbl = (t, k) => (S.st[t].find(r => r[0] === k) || [])[1];
+function label(b) {
+  if (b.name) return b.name;
+  const a = b.action;
+  switch (a.type) {
+    case "openApp": case "openFile": case "executeFile": return base(a.path) || "（未选择）";
+    case "openURL": try { return new URL(/:/.test(a.url) ? a.url : "https://" + a.url).host.replace(/^www\./, "") || a.url; } catch { return a.url || "（未填写）"; }
+    case "runCommand": return a.command || "（未填写）";
+    case "keystroke": return a.chord || "（未录制）";
+    case "insertText": return a.text || "（未填写）";
+    case "menu": return (a.menu || "（未填写）").replaceAll("->", " › ");
+    case "window": return tbl("windowLayouts", a.window) || "（未选择）";
+    case "inputMethod": return a.layout === "next" ? "下一个输入法" : "切换输入法";
+    case "notify": return a.title || a.text || "通知";
+    case "system": return tbl("systemActions", a.system) || "（未选择）";
+  }
+  return a.type;
+}
+function detail(b) {
+  const a = b.action;
+  switch (a.type) {
+    case "openApp": return (a.cycle?.length ? "轮换 " + [a.path, ...a.cycle.map(c => c.path)].map(base).join(" → ") : a.path) || "";
+    case "openURL": return a.url || "";
+    case "openFile": case "executeFile": return a.path || "";
+    case "runCommand": return (a.shell === "powershell" ? "PowerShell · " : "cmd · ") + (a.command || "");
+    case "keystroke": return a.chord || "";
+    case "insertText": return (a.paste ? "粘贴 · " : "键入 · ") + (a.text || "").replace(/\s+/g, " ");
+    case "menu": return a.menu || "";
+    case "notify": return a.text || "";
+  }
+  return "";
+}
+function incomplete(a) {
+  switch (a.type) {
+    case "openApp": case "openFile": case "executeFile": return !a.path;
+    case "openURL": return !a.url; case "runCommand": return !a.command; case "keystroke": return !a.chord;
+    case "insertText": return !a.text; case "menu": return !a.menu; case "window": return !a.window;
+    case "inputMethod": return !a.layout; case "notify": return !a.title && !a.text; case "system": return !a.system;
+  }
+  return true;
+}
+function scopesOverlap(a, b) {
+  const A = a.scope, B = b.scope, am = A.mode || "all", bm = B.mode || "all";
+  if (am === "all" || bm === "all") return true;
+  const as = A.apps || [], bs = B.apps || [];
+  if (am === "only" && bm === "only") return as.some(x => bs.includes(x));
+  if (am === "only") return as.some(x => !bs.includes(x));
+  if (bm === "only") return bs.some(x => !as.includes(x));
+  return true;
+}
+// issues: same shortcut in overlapping scopes (conflict), or prefix of a longer one (info).
+function analyse(list) {
+  const by = new Map(), out = new Map();
+  for (const b of list) { const k = leaderOf(b).id + "|" + b.keys.join(" "); (by.get(k) || by.set(k, []).get(k)).push(b); }
+  for (const [k, group] of by) {
+    for (const b of group) {
+      const o = {};
+      if (group.some(x => x !== b && x.enabled && b.enabled && scopesOverlap(x, b))) o.conflict = true;
+      out.set(b.id, o);
+    }
+    const pre = k + " ";
+    if (group[0].keys.length) for (const [k2, g2] of by) if (k2.startsWith(pre)) { group.forEach(b => out.get(b.id).prefix = (out.get(b.id).prefix || 0) + g2.length); }
+  }
+  return out;
+}
+
+// ---------- shell ----------
+function renderRail() {
+  $("#ver").textContent = "v" + S.st.version.split("+")[0];
+  const nav = $("#nav");
+  nav.innerHTML = '<i class="pill"></i>' + PAGES.map(([id, name]) => `<button data-page="${id}" class="${id === S.page ? "on" : ""}">${ico(id)}${name}${id === "keys" ? `<span class="n">${S.cfg.bindings.length}</span>` : ""}</button>`).join("");
+  $(".pill", nav).style.transform = `translateY(${PAGES.findIndex(p => p[0] === S.page) * 38}px)`;
+  $("#power").className = "sw" + (S.cfg.enabled ? " on" : "");
+  $("#powerT").textContent = S.cfg.enabled ? "已启用" : "已暂停";
+  $("#powerS").textContent = `已运行 ${S.st.usage.total} 次`;
+}
+function go(page) {
+  if (S.log.timer && page !== "activity") { clearInterval(S.log.timer); S.log.timer = 0; }
+  S.page = page; S.sel.clear();
+  renderRail(); render();
+}
+function render() {
+  const m = $("#main");
+  m.innerHTML = `<section class="page" id="page"></section><div class="bulk" id="bulk"></div>`;
+  ({keys: pageKeys, leader: pageLeader, hint: pageHint, general: pageGeneral, activity: pageActivity, about: pageAbout})[S.page]();
+}
+
+// ---------- keys page ----------
+const ROWS = [
+  [["Esc",1.3],["F1"],["F2"],["F3"],["F4"],["F5"],["F6"],["F7"],["F8"],["F9"],["F10"],["F11"],["F12"],["Delete",1.3]],
+  [["`"],["1"],["2"],["3"],["4"],["5"],["6"],["7"],["8"],["9"],["0"],["-"],["="],["Backspace",1.9]],
+  [["Tab",1.45],["Q"],["W"],["E"],["R"],["T"],["Y"],["U"],["I"],["O"],["P"],["["],["]"],["\\",1.45]],
+  [["CapsLock",1.75],["A"],["S"],["D"],["F"],["G"],["H"],["J"],["K"],["L"],[";"],["'"],["Enter",2.2]],
+  [["LShift",2.25],["Z"],["X"],["C"],["V"],["B"],["N"],["M"],[","],["."],["/"],["RShift",2.75]],
+  [["LCtrl",1.4],["Win",1.4],["LAlt",1.4],["Space",6.6],["RAlt",1.4],["Menu",1.4],["RCtrl",1.4]],
+];
+const CAP = {Esc:"esc",Delete:"del",Backspace:"⌫",Tab:"tab",CapsLock:"caps",Enter:"↵",LShift:"shift",RShift:"shift",LCtrl:"ctrl",RCtrl:"ctrl",LAlt:"alt",RAlt:"alt",Win:"win",Menu:"menu",Space:""};
+function levelOf(leaderId, path) {
+  // children of the current path: key -> {leaf: binding, n: count below, any enabled}
+  const out = new Map();
+  for (const b of S.cfg.bindings) {
+    if (leaderOf(b).id !== leaderId || b.keys.length <= path.length) continue;
+    if (!path.every((k, i) => b.keys[i] === k)) continue;
+    const k = b.keys[path.length], e = out.get(k) || out.set(k, {n: 0, leaf: null, on: false}).get(k);
+    e.n++; e.on = e.on || b.enabled;
+    if (b.keys.length === path.length + 1 && (!e.leaf || b.enabled)) e.leaf = b;
+  }
+  return out;
+}
+function mapHTML() {
+  const L = curLeader(), lv = levelOf(L.id, S.path);
+  const parts = L.key.split("+"), leadKeys = new Set(parts.map(p => ({Ctrl:"LCtrl",Shift:"LShift",Alt:"LAlt"}[p] || p)));
+  let i = 0;
+  const rows = ROWS.map((row, ri) => `<div class="r">` + row.map(([k, w]) => {
+    const e = lv.get(k), lead = leadKeys.has(k);
+    const dead = !lead && (isMod(k) || k === "Menu" || k === "Esc" || (k === "Backspace" && S.path.length > 0));
+    let cls = "k" + (ri === 0 ? " fn" : ""), text = "", n = "";
+    if (lead) { cls += " lead"; text = L.mode === "hold" ? "按住" : "轻按"; }
+    else if (dead) cls += " dead";
+    else if (e) {
+      cls += " has" + (e.on ? "" : " off");
+      if (e.n > 1 || !e.leaf) { cls += " grp"; n = e.n; text = e.leaf ? label(e.leaf) : S.cfg.bindings.filter(b => leaderOf(b).id === L.id && b.keys[S.path.length] === k && S.path.every((p, j) => b.keys[j] === p)).slice(0, 3).map(label).join("、"); }
+      else text = label(e.leaf);
+    }
+    return `<button class="${cls}" style="--w:${w || 1};--i:${i++}" data-key="${esc(k)}" ${n ? `data-n="${n}"` : ""} ${dead || lead ? "tabindex=-1" : ""} title="${esc(text)}"><b>${esc(CAP[k] ?? k)}</b>${ri ? `<span>${esc(text)}</span>` : ""}</button>`;
+  }).join("") + `</div>`).join("");
+  const crumbs = [`<button data-crumb="0">${chordCaps(L.key, "lead")}</button>`, ...S.path.map((k, j) => `<span class="gt">›</span><button data-crumb="${j + 1}">${kcap(k)}</button>`)].join("");
+  const leaders = S.cfg.leaders.length > 1 ? `<div class="leaders">${S.cfg.leaders.map(l => `<button data-leader="${l.id}" class="${l.id === L.id ? "on" : ""}">${chordCaps(l.key, l.id === L.id ? "lead" : "")}${l.mode === "hold" ? "按住" : "轻按"}</button>`).join("")}</div>` : "";
+  return `<div class="map"><div class="maphead">${leaders}<div class="crumbs">${crumbs}</div><span class="tip">${S.path.length ? "点空白键在这一层新建 · " : ""}点亮的键可以查看或进入下一层，空白键直接新建</span></div><div class="kb">${rows}</div></div>`;
+}
+function matches(b, q) {
+  if (!q) return true;
+  const hay = (label(b) + " " + detail(b) + " " + b.keys.join("") + " " + b.keys.join(" ") + " " + TYPE_NAME[b.action.type] + " " + (b.scope.apps || []).join(" ")).toLowerCase();
+  return q.toLowerCase().split(/\s+/).every(w => {
+    if (w === "is:on") return b.enabled; if (w === "is:off") return !b.enabled;
+    if (w.startsWith("type:")) return b.action.type.toLowerCase().includes(w.slice(5)) || TYPE_NAME[b.action.type].includes(w.slice(5));
+    if (w.startsWith("app:")) return (b.scope.apps || []).some(a => a.includes(w.slice(4)));
+    return hay.includes(w);
+  });
+}
+function visibleBindings() {
+  const L = curLeader();
+  return S.cfg.bindings.filter(b => {
+    if (S.q) return matches(b, S.q);
+    return leaderOf(b).id === L.id && S.path.every((k, i) => b.keys[i] === k);
+  }).sort((a, b) => a.keys.join(" ").localeCompare(b.keys.join(" "), "en"));
+}
+function rowHTML(b, info) {
+  const L = leaderOf(b), i = info.get(b.id) || {}, a = b.action, n = S.st.usage.counts[b.id] || 0;
+  const chips = [];
+  if (i.conflict) chips.push(`<span class="chip warn" title="同一个快捷键在重叠的范围里出现了不止一次，只有排在前面的会运行">${ico("warn")}冲突</span>`);
+  if (incomplete(a)) chips.push(`<span class="chip warn">未填完</span>`);
+  if (i.prefix && !incomplete(a)) chips.push(`<span class="chip" title="运行后继续等待更长的快捷键">前缀 · ${i.prefix}</span>`);
+  if (b.after === "stay") chips.push(`<span class="chip" title="运行后停在这一层，可以连续按">连按</span>`);
+  if (b.scope.mode === "only") chips.push(`<span class="chip acc">仅 ${esc(b.scope.apps.map(base).join("、"))}</span>`);
+  if (b.scope.mode === "except") chips.push(`<span class="chip">排除 ${esc(b.scope.apps.map(base).join("、"))}</span>`);
+  return `<div class="b${b.enabled ? "" : " dis"}${S.draft && S.draft.id === b.id ? " cur" : ""}" data-id="${b.id}">
+    <button class="ck${S.sel.has(b.id) ? " on" : ""}" data-ck="${b.id}" aria-label="选择">${ico("check")}</button>
+    <span class="keys">${chordCaps(L.key, "lead")}${b.keys.map(k => `<span class="gt">›</span>${kcap(k)}`).join("")}</span>
+    <span class="what"><span class="ic">${ico(a.type)}</span><b>${esc(label(b))}</b><small>${esc(b.name ? detail(b) : (a.type === "openApp" || a.type === "openFile" || a.type === "executeFile" || a.type === "openURL" ? detail(b) : TYPE_NAME[a.type]))}</small></span>
+    <span class="meta">${chips.join("")}</span><span class="uses" title="已运行次数">${n ? n + " 次" : ""}</span>
+    <button class="sw${b.enabled ? " on" : ""}" data-toggle="${b.id}" aria-label="启用"></button></div>`;
+}
+function listHTML() {
+  const all = visibleBindings(), info = analyse(S.cfg.bindings);
+  if (!all.length) return `<div class="list"><div class="empty"><b>${S.q ? "没有匹配的快捷键" : S.path.length ? "这一层还没有快捷键" : "还没有快捷键"}</b>${S.q ? "换个关键词，或者试试 type:网址、is:off、app:chrome" : "点上面键盘上的任意一个键，或者按“新建”"}</div></div>`;
+  const shown = all.slice(0, S.shown);
+  return `<div class="list${S.sel.size ? " picking" : ""}">${shown.map(b => rowHTML(b, info)).join("")}${all.length > shown.length ? `<button class="more" data-act="more">再显示 ${Math.min(200, all.length - shown.length)} 条（共 ${all.length} 条）</button>` : ""}</div>`;
+}
+function pageKeys() {
+  $("#page").innerHTML = `<header><div><h1>快捷键</h1><p>按住引导键，再按下面的键。点键盘上的键来查看、进入下一层或新建。</p></div><span class="sp"></span>
+    <button class="btn" data-act="import">${ico("down")}导入</button><button class="btn" data-act="export">${ico("up")}导出</button><button class="btn primary" data-act="new">${ico("plus")}新建</button></header>
+    <div id="map">${mapHTML()}</div>
+    <div class="tools"><div class="search">${ico("search")}<input type="search" id="q" placeholder="搜索全部快捷键：名称、按键、程序，或 type:网址  is:off  app:chrome" value="${esc(S.q)}"></div><span class="sp"></span><span class="hint" id="count"></span></div>
+    <div id="list">${listHTML()}</div>`;
+  renderBulk(); count();
+}
+function count() { const n = visibleBindings().length; $("#count").textContent = S.q ? `找到 ${n} 条` : `这一层 ${n} 条`; }
+function refreshKeys(mapToo) {
+  if (S.page !== "keys") return;
+  if (mapToo) $("#map").innerHTML = mapHTML();
+  $("#list").innerHTML = listHTML(); renderBulk(); count(); renderRail();
+}
+function renderBulk() {
+  const b = $("#bulk"); if (!b) return;
+  b.className = "bulk" + (S.sel.size ? " on" : "");
+  b.innerHTML = `<span>已选 ${S.sel.size} 条</span><button class="btn sm" data-bulk="on">启用</button><button class="btn sm" data-bulk="off">停用</button><button class="btn sm" data-bulk="copy">${ico("copy")}复制</button><button class="btn sm" data-bulk="export">导出</button><button class="btn sm" data-bulk="del">${ico("trash")}删除</button><button class="btn sm" data-bulk="none" aria-label="取消">${ico("x")}</button>`;
+}
+
+// ---------- editor ----------
+function newBinding(keys) {
+  return {id: "", enabled: true, leader: curLeader().id === S.cfg.leaders[0].id ? "" : curLeader().id, keys: keys || [...S.path], name: "", action: {type: "openApp"}, scope: {mode: "all", apps: []}, after: ""};
+}
+function openEditor(b, isNew) {
+  S.draft = clone(b); S.draft._new = !!isNew; S.draft.scope.apps = S.draft.scope.apps || [];
+  renderEditor(); $("#drawer").classList.add("on"); $("#scrim").classList.add("on");
+  if (S.page === "keys") $("#list").innerHTML = listHTML();
+  if (isNew && !S.draft.keys.length && leaderOf(S.draft).mode === "hold") setTimeout(() => startRec("keys"), 280);
+}
+function closeEditor() { stopRec(); S.draft = null; $("#drawer").classList.remove("on"); $("#scrim").classList.remove("on"); if (S.page === "keys") refreshKeys(true); }
+function recHTML(id, inner, ph) {
+  const live = S.rec === id;
+  return `<div class="rec${live ? " live" : ""}" tabindex="0" data-rec="${id}">${inner || `<span class="ph">${live ? "现在按键…" : ph}</span>`}${live ? `<span class="ph x">${id.startsWith("lead:") ? "现在按新的引导键 · " : ""}Esc 结束</span>` : id.startsWith("lead:") ? `<span class="ph x">点这里重新录制</span>` : inner ? `<button class="btn ghost sm x" data-clear="${id}">清除</button>` : ""}</div>`;
+}
+const LAYOUT_BOX = {left:[0,0,3,6],right:[3,0,3,6],top:[0,0,6,3],bottom:[0,3,6,3],"left-third":[0,0,2,6],"center-third":[2,0,2,6],"right-third":[4,0,2,6],"left-two-thirds":[0,0,4,6],"right-two-thirds":[2,0,4,6],"top-left":[0,0,3,3],"top-right":[3,0,3,3],"bottom-left":[0,3,3,3],"bottom-right":[3,3,3,3],maximize:[0,0,6,6],center:[1,1,4,4]};
+function actionFields(a) {
+  const f = (labelT, html, hint) => `<div class="field"><label>${labelT}</label>${html}${hint ? `<small>${hint}</small>` : ""}</div>`;
+  const inp = (k, ph, cls = "") => `<input type="text" class="${cls}" data-a="${k}" value="${esc(a[k] || "")}" placeholder="${esc(ph || "")}" spellcheck="false">`;
+  switch (a.type) {
+    case "openApp": return f("程序", `<div class="inline">${inp("path", "选择程序，或填 exe / 快捷方式的路径", "mono")}<button class="btn" data-pick="path">选择…</button></div>`)
+      + `<div class="two">${f("启动参数", inp("args", "可不填", "mono"))}${f("已经在最前面时", `<select data-a="ifRunning"><option value="">切到它的下一个窗口</option><option value="hide">最小化</option><option value="previous">切回上一个程序</option><option value="new">再开一个</option></select>`)}</div>`
+      + f("轮换程序", `<div class="keys" style="gap:6px">${(a.cycle || []).map((c, i) => `<span class="chip">${esc(c.name || base(c.path))}<button data-uncycle="${i}">${ico("x")}</button></span>`).join("")}<button class="btn sm" data-pick="cycle">${ico("plus")}添加</button></div>`, "加了以后，同一个快捷键会在这些程序之间依次切换。");
+    case "openURL": return f("网址", inp("url", "https://example.com", "mono")) + f("用哪个浏览器打开", `<div class="inline">${inp("with", "默认浏览器", "mono")}<button class="btn" data-pick="with">选择…</button></div>`);
+    case "openFile": return f("文件或文件夹", inp("path", "%USERPROFILE%\\Downloads", "mono"), "可以用 %USERPROFILE% 这类环境变量，或以 ~ 开头。") + f("用哪个程序打开", `<div class="inline">${inp("with", "默认程序", "mono")}<button class="btn" data-pick="with">选择…</button></div>`);
+    case "executeFile": return f("要运行的文件", inp("path", "D:\\scripts\\sync.bat", "mono")) + f("参数", inp("args", "可不填", "mono"));
+    case "runCommand": return f("命令", `<textarea class="mono" data-a="command" spellcheck="false" placeholder="例如：code %USERPROFILE%\\notes">${esc(a.command || "")}</textarea>`)
+      + `<div class="two">${f("用什么运行", `<select data-a="shell"><option value="">cmd</option><option value="powershell">PowerShell</option></select>`)}<div class="field"><label>窗口</label><div class="inline" style="height:36px"><button class="sw${a.hidden ? " on" : ""}" data-abool="hidden"></button>不显示命令行窗口</div></div></div>`;
+    case "keystroke": return f("要模拟的按键", recHTML("chord", a.chord ? `<span class="keys">${chordCaps(a.chord)}</span>` : "", "点这里，然后按下组合键，例如 Ctrl+Shift+T"), "按住触发键不放会连续重复，适合缩放、音量这类操作。");
+    case "insertText": return f("文本", `<textarea data-a="text" placeholder="要插入的内容">${esc(a.text || "")}</textarea><div class="keys" style="gap:6px;margin-top:2px">${["cursor:光标停在这里","clipboard:剪贴板内容","date:日期","time:时间"].map(p => { const [k, t] = p.split(":"); return `<button class="btn sm" data-ph="{{${k}}}" title="${t}">{{${k}}}</button>`; }).join("")}</div>`)
+      + f("方式", `<div class="seg"><button data-aset="paste:" class="${a.paste ? "" : "on"}">逐字键入</button><button data-aset="paste:1" class="${a.paste ? "on" : ""}">通过剪贴板粘贴</button></div>`, a.paste ? "长文本更快，粘贴后会把剪贴板恢复原样。" : "不动剪贴板，支持中文和表情。带换行的文本在聊天软件里可能会直接发送。");
+    case "menu": return f("菜单路径", inp("menu", "文件->另存为...", "mono"), "按程序菜单栏上显示的文字填写，各级之间用 -> 隔开。只支持带标准菜单栏的程序（记事本、资源管理器之外的许多传统软件）；新式界面的程序请改用“模拟按键”。");
+    case "window": return f("窗口动作", `<div class="tiles">${Object.entries(LAYOUT_BOX).map(([k, [x, y, w, h]]) => `<button data-aset="window:${k}" class="${a.window === k ? "on" : ""}" title="${esc(tbl("windowLayouts", k))}"><i style="left:${x / 6 * 100 + 6}%;top:${y / 6 * 100 + 9}%;width:${w / 6 * 100 - 12}%;height:${h / 6 * 100 - 18}%"></i></button>`).join("")}</div>`)
+      + f("或者", `<select data-a="window"><option value="">选择…</option>${S.st.windowLayouts.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select>`)
+      + (a.window === "custom" ? `<div class="two">${["左边距 %","上边距 %","宽度 %","高度 %"].map((t, i) => f(t, `<input type="number" min="0" max="100" data-rect="${i}" value="${(a.rect || [10, 10, 80, 80])[i]}">`)).join("")}</div>` : "");
+    case "inputMethod": return f("切换到", `<select data-a="layout"><option value="">选择…</option><option value="next">下一个输入法</option>${(S.layouts || []).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("")}</select>`, "按语言切换。同一种语言下装了多个输入法时，Windows 不提供直接指定其中一个的方法。");
+    case "notify": return f("标题", inp("title", "提醒")) + f("内容", inp("text", "可不填")) + f("点击通知后打开的网址", inp("url", "可不填", "mono"));
+    case "system": return f("动作", `<select data-a="system"><option value="">选择…</option>${S.st.systemActions.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select>`);
+  }
+  return "";
+}
+function renderEditor() {
+  const d = S.draft, a = d.action, L = leaderOf(d);
+  const others = S.cfg.bindings.filter(b => b.id !== d.id);
+  const same = others.filter(b => leaderOf(b).id === L.id && b.keys.join(" ") === d.keys.join(" ") && b.enabled && scopesOverlap(b, d));
+  const longer = others.filter(b => leaderOf(b).id === L.id && b.keys.length > d.keys.length && d.keys.every((k, i) => b.keys[i] === k)).length;
+  const shorter = others.find(b => leaderOf(b).id === L.id && b.keys.length && b.keys.length < d.keys.length && b.keys.every((k, i) => d.keys[i] === k) && (b.after === "stop" || b.after === "root"));
+  let notes = "";
+  if (d.keys.length || L.mode === "tap") {
+    if (same.length) notes += `<div class="note">${ico("warn")}<span>“${esc(label(same[0]))}” 已经在用这个快捷键，范围也有重叠。保存后只有排在前面的那条会运行。</span></div>`;
+    if (shorter) notes += `<div class="note">${ico("warn")}<span>较短的 “${esc(label(shorter))}” 运行后会结束按键序列，这条按不到。把它的“运行之后”改成默认即可。</span></div>`;
+    if (longer && d.keys.length) notes += `<div class="note info">${ico("about")}<span>这是一个前缀动作：它先运行，然后继续等待下面 ${longer} 条更长的快捷键。</span></div>`;
+  }
+  const leaderSel = S.cfg.leaders.length > 1 ? `<div class="field"><label>引导键</label><div class="seg">${S.cfg.leaders.map((l, i) => `<button data-dleader="${i ? l.id : ""}" class="${l.id === L.id ? "on" : ""}">${esc(l.key)}</button>`).join("")}</div></div>` : "";
+  $("#drawer").innerHTML = `<header><h2>${d._new ? "新建快捷键" : "编辑快捷键"}</h2><button class="btn ghost sm" data-act="close" aria-label="关闭">${ico("x")}</button></header>
+  <div class="body">${notes}${leaderSel}
+    <div class="field"><label>触发键</label>${recHTML("keys", `<span class="keys">${chordCaps(L.key, "lead")}${d.keys.map(k => `<span class="gt">›</span>${kcap(k)}`).join("")}</span>`, "")}
+      <small>${L.mode === "hold" ? `按住 ${esc(L.key)} 后依次按这些键。` : `轻按 ${esc(L.key)} 后依次按这些键；不录触发键就是轻按引导键直接运行。`}点上面的框开始录制，最多 ${S.st.limits.keys} 个。</small></div>
+    <div class="field"><label>动作</label><div class="types">${TYPES.map(([k, t]) => `<button data-type="${k}" class="${a.type === k ? "on" : ""}">${ico(k)}${t}</button>`).join("")}</div></div>
+    <div id="af">${actionFields(a)}</div>
+    <div class="field"><label>名称</label><input type="text" data-d="name" value="${esc(d.name || "")}" placeholder="${esc(label({...d, name: ""}))}"><small>显示在提示窗里，不填就用上面这个默认名。</small></div>
+    <div class="field"><label>运行之后</label><div class="seg">${[["", L.mode === "hold" ? "回到顶层" : "结束"],["stay","停在这一层"],["root", L.mode === "hold" ? "回顶层并显示提示" : "回到顶层"],["stop","结束序列"]].filter((x, i) => !(L.mode === "tap" && i === 3)).map(([v, t]) => `<button data-dset="after:${v}" class="${(d.after || "") === v ? "on" : ""}">${t}</button>`).join("")}</div>
+      <small>${d.after === "stay" ? "适合要连按的动作：不松开引导键，可以反复按同一层的键。" : ""}</small></div>
+    <div class="field"><label>在哪些程序里生效</label><div class="seg">${[["all","所有程序"],["only","仅这些程序"],["except","除了这些程序"]].map(([v, t]) => `<button data-scope="${v}" class="${d.scope.mode === v ? "on" : ""}">${t}</button>`).join("")}</div>
+      ${d.scope.mode !== "all" ? `<div class="keys" style="gap:6px;margin-top:4px">${d.scope.apps.map((x, i) => `<span class="chip">${esc(x)}<button data-unscope="${i}">${ico("x")}</button></span>`).join("")}<button class="btn sm" data-pick="scope">${ico("plus")}添加程序</button></div>` : ""}</div>
+  </div>
+  <footer>${d._new ? "" : `<button class="btn danger ghost" data-act="delete">${ico("trash")}删除</button><button class="btn ghost" data-act="dup">${ico("copy")}复制一条</button>`}<span class="sp"></span>
+    <button class="btn" data-act="test" ${incomplete(a) ? "disabled" : ""}>${ico("play")}试一下</button><button class="btn primary" data-act="save">保存</button></footer>`;
+  for (const s of $$("select[data-a]", $("#drawer"))) s.value = a[s.dataset.a] || "";
+}
+function startRec(id) { S.rec = id; if (id === "keys" && S.draft) S.draft.keys = []; rerenderRec(); }
+function stopRec() { if (S.rec) { S.rec = null; rerenderRec(); } }
+function rerenderRec() {
+  if (S.draft && $("#drawer").classList.contains("on")) { const sc = $("#drawer .body").scrollTop; renderEditor(); $("#drawer .body").scrollTop = sc; }
+  else if (S.page === "leader" || S.page === "hint") render();
+}
+document.addEventListener("keydown", e => {
+  if (!S.rec) {
+    if (e.key === "Escape") { if ($("#dialog").classList.contains("on")) closeDialog(); else if (S.draft) closeEditor(); else if (S.sel.size) { S.sel.clear(); refreshKeys(); } }
+    else if (e.key === "/" && S.page === "keys" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !S.draft) { e.preventDefault(); $("#q").focus(); }
+    return;
+  }
+  e.preventDefault(); e.stopPropagation();
+  const k = keyOf(e), id = S.rec;
+  if (id === "keys") {
+    if (k === "Esc" || !k) return stopRec();
+    if (isMod(k)) return;
+    const L = leaderOf(S.draft);
+    if ((L.mode === "hold" && k === L.key) || (k === "Backspace" && S.draft.keys.length)) return toast("这个键不能用作触发键", true);
+    S.draft.keys.push(k);
+    if (S.draft.keys.length >= S.st.limits.keys) S.rec = null;
+    return rerenderRec();
+  }
+  if (k === "Esc") return stopRec();
+  if (id === "chord") { const c = chordOf(e); if (!c) return; S.draft.action.chord = c; S.rec = null; return rerenderRec(); }
+  if (id === "search") { if (!k || isMod(k) || k === "Enter" || k === "Backspace") return; S.cfg.hint.searchKey = k; S.rec = null; saveSoon(); return render(); }
+  if (id.startsWith("lead:")) {
+    const l = S.cfg.leaders[+id.slice(5)];
+    if (l.mode === "hold") { if (!k || isMod(k)) return toast("按住型引导键需要是一个普通按键", true); l.key = k; }
+    else { const c = chordOf(e); if (c && c.includes("+")) l.key = c; else if (c) return toast("轻按型需要组合键（如 Alt+S），或单独松开一个修饰键", true); else { S.modRec = k; return; } }
+    S.rec = null; saveSoon(); return render();
+  }
+}, true);
+document.addEventListener("keyup", e => {
+  // A modifier pressed and released alone: a single-modifier tap leader.
+  if (S.rec && S.rec.startsWith("lead:") && S.modRec && keyOf(e) === S.modRec) {
+    const l = S.cfg.leaders[+S.rec.slice(5)];
+    if (l.mode === "tap") { l.key = S.modRec === "Win" ? "Win" : S.modRec; S.rec = null; saveSoon(); render(); }
+  }
+  S.modRec = null;
+}, true);
+
+// ---------- pickers & dialogs ----------
+function showDialog(html) { $("#dialog").innerHTML = html; $("#dialog").classList.add("on"); $("#scrim2").classList.add("on"); }
+function closeDialog() { $("#dialog").classList.remove("on"); $("#scrim2").classList.remove("on"); S.onPick = null; }
+async function pickApp(onPick) {
+  S.onPick = onPick;
+  showDialog(`<header><h2>选择程序</h2><div class="search">${ico("search")}<input type="search" id="pq" placeholder="搜索已安装和正在运行的程序"></div></header><div class="body" id="plist"><div class="empty">正在读取程序列表…</div></div><footer><button class="btn" data-act="closeDialog">取消</button></footer>`);
+  $("#pq").focus();
+  if (!S.apps) { try { S.apps = (await api("/api/apps")).apps; } catch (e) { toast(e.message, true); S.apps = []; } }
+  renderPick("");
+}
+function renderPick(q) {
+  const el = $("#plist"); if (!el) return;
+  q = q.toLowerCase();
+  const list = S.apps.filter(a => !q || (a.name + " " + (a.exe || "") + " " + a.path).toLowerCase().includes(q)).slice(0, 80);
+  const src = {running: "正在运行", start: "开始菜单", store: "应用商店"};
+  el.innerHTML = list.length ? list.map(a => `<button class="pick" data-app="${S.apps.indexOf(a)}"><span class="what"><span class="ic">${ico("openApp")}</span></span><span class="t"><b>${esc(a.name)}</b><small class="mono">${esc(a.path)}</small></span><span class="chip">${src[a.source] || ""}</span></button>`).join("") : `<div class="empty">没有找到。可以回到上一步直接填写路径。</div>`;
+}
+function bundle(list) {
+  return {spacehop: "bindings", version: 2, leaders: S.cfg.leaders, bindings: list.map(b => ({...b, leaderKey: leaderOf(b).key, leaderMode: leaderOf(b).mode, leaderKeepTap: !!leaderOf(b).keepTap}))};
+}
+function download(name, obj) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], {type: "application/json"}));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const sameShortcut = (a, b) => leaderOf(a).key === (b.leaderKey || leaderOf(b).key) && a.keys.join(" ") === b.keys.join(" ") && JSON.stringify(a.scope) === JSON.stringify(b.scope);
+function importDialog(data) {
+  let incoming = [];
+  if (data && data.spacehop === "bindings" && Array.isArray(data.bindings)) incoming = data.bindings;
+  else if (data && Array.isArray(data.bindings) && data.leaders) { S.pendingFull = data; return showDialog(`<header><h2>恢复完整配置</h2></header><div class="body" style="padding:0 18px 12px">这个文件是一份完整的配置（${data.bindings.length} 条快捷键，以及引导键、提示窗等全部设置）。恢复会替换当前的全部设置；当前配置会先自动备份。</div><footer><button class="btn" data-act="closeDialog">取消</button><button class="btn primary" data-act="restoreFull">替换当前配置</button></footer>`); }
+  else return toast("这不是 SpaceHop 的快捷键文件", true);
+  S.incoming = incoming;
+  const dup = incoming.filter(b => S.cfg.bindings.some(x => sameShortcut(x, b))).length;
+  showDialog(`<header><h2>导入 ${incoming.length} 条快捷键</h2></header><div class="body" style="padding:0 18px 12px">
+    <p style="margin:0 0 12px;color:var(--muted)">其中 ${incoming.length - dup} 条是新的，${dup} 条与现有快捷键的按键和范围相同。用到的引导键如果还没有，会一并添加。</p></div>
+    <footer><button class="btn" data-act="closeDialog">取消</button><button class="btn danger" data-imp="replaceAll">全部替换现有</button>${dup ? `<button class="btn" data-imp="replace">合并，重复的用新的</button>` : ""}<button class="btn primary" data-imp="skip">合并${dup ? "，跳过重复" : ""}</button></footer>`);
+}
+function doImport(mode) {
+  const cfg = clone(S.cfg);
+  if (mode === "replaceAll") cfg.bindings = [];
+  let added = 0, replaced = 0, skipped = 0;
+  for (const raw of S.incoming) {
+    const b = clone(raw), key = b.leaderKey, lm = b.leaderMode || "hold";
+    let L = key ? cfg.leaders.find(l => l.key === key) : cfg.leaders[0];
+    if (!L) { if (cfg.leaders.length >= S.st.limits.leaders) { skipped++; continue; } L = {id: "l" + Math.random().toString(16).slice(2, 10), mode: lm, key, keepTap: !!b.leaderKeepTap}; cfg.leaders.push(L); }
+    b.leader = L === cfg.leaders[0] ? "" : L.id; b.id = "";
+    delete b.leaderKey; delete b.leaderMode; delete b.leaderKeepTap;
+    const lk = x => (cfg.leaders.find(l => l.id === x.leader) || cfg.leaders[0]).key;
+    const at = cfg.bindings.findIndex(x => lk(x) === L.key && x.keys.join(" ") === b.keys.join(" ") && JSON.stringify(x.scope) === JSON.stringify(b.scope));
+    if (at >= 0) { if (mode === "replace") { cfg.bindings[at] = b; replaced++; } else skipped++; }
+    else { cfg.bindings.push(b); added++; }
+  }
+  closeDialog();
+  save(cfg, true).then(ok => { if (ok) { toast(`新增 ${added} 条` + (replaced ? `，替换 ${replaced} 条` : "") + (skipped ? `，跳过 ${skipped} 条` : "")); render(); } });
+}
+function readFile(cb) {
+  const i = document.createElement("input"); i.type = "file"; i.accept = ".json,application/json";
+  i.onchange = () => i.files[0] && i.files[0].text().then(t => { try { cb(JSON.parse(t)); } catch { toast("文件不是有效的 JSON", true); } });
+  i.click();
+}
+
+// ---------- leader page ----------
+function lane(l) {
+  const lead = chordCaps(l.key, "lead");
+  if (l.mode === "hold") return `<div class="lane"><span class="band">${lead} 按住</span>${kcap("F")}${kcap("D")}<span>松开</span><span style="margin-left:auto">${l.keepTap ? "轻点一下仍然输入这个键" : "立即就绪，这个键原来的功能不再有"}</span></div>`;
+  return `<div class="lane"><span class="band">${lead} 按一下</span><span>松开，然后</span>${kcap("F")}${kcap("D")}<span style="margin-left:auto">${l.key.includes("+") ? "组合键" : "单独轻按一个修饰键"}</span></div>`;
+}
+function pageLeader() {
+  const used = id => S.cfg.bindings.filter(b => leaderOf(b).id === id).length;
+  $("#page").innerHTML = `<header><div><h1>引导键</h1><p>引导键是开始一个快捷键的那个键。每条快捷键可以用不同的引导键，空格和 CapsLock 可以并存。</p></div><span class="sp"></span><button class="btn primary" data-act="addLeader" ${S.cfg.leaders.length >= S.st.limits.leaders ? "disabled" : ""}>${ico("plus")}添加引导键</button></header>`
+  + S.cfg.leaders.map((l, i) => `<div class="card"><div class="inline" style="gap:12px;margin-bottom:12px">
+      <div class="seg"><button data-lmode="${i}:hold" class="${l.mode === "hold" ? "on" : ""}">按住</button><button data-lmode="${i}:tap" class="${l.mode === "tap" ? "on" : ""}">轻按</button></div>
+      ${i === 0 ? `<span class="chip acc">默认</span>` : `<button class="btn ghost sm" data-ldefault="${i}">设为默认</button>`}<span class="chip">${used(l.id)} 条快捷键</span><span style="flex:1"></span>
+      ${S.cfg.leaders.length > 1 ? `<button class="btn ghost sm danger" data-ldel="${i}">${ico("trash")}移除</button>` : ""}</div>
+    ${recHTML("lead:" + i, `<span class="keys">${chordCaps(l.key, "lead")}</span>`, "")}
+    ${l.mode === "hold" ? `<div class="row" style="border-top:0;padding-bottom:0"><div class="t"><b>保留轻点</b><small>轻点一下照常输入这个键，按住才是引导键。关掉后这个键专门用作引导键，按下立即就绪。</small></div><button class="sw${l.keepTap ? " on" : ""}" data-lkeep="${i}"></button></div>` : ""}
+    ${lane(l)}</div>`).join("")
+  + `<div class="card"><h3>四种用法</h3><p>点上面的按键框可以重新录制。</p><div class="cmds">
+      <b>按住 · 保留轻点</b><span>空格，甚至字母键。轻点照常打字，按住才触发；快速打字时不会误触。</span>
+      <b>按住 · 专用键</b><span>F12、CapsLock 这类平时不用的键。按下就绪，没有任何等待。</span>
+      <b>轻按 · 组合键</b><span>Alt+S 这类组合。按一下松开，再依次按触发键。</span>
+      <b>轻按 · 单个修饰键</b><span>单独按一下右 Ctrl 之类的修饰键，再按触发键；也可以不带触发键直接运行一个动作。</span></div></div>`;
+}
+
+// ---------- hint page ----------
+function hintMock() {
+  const h = S.cfg.hint, L = S.cfg.leaders[0], lv = levelOf(L.id, []);
+  const light = h.theme === "light" || (h.theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
+  let items = [...lv.entries()].filter(([, e]) => e.on).sort((a, b) => a[0].localeCompare(b[0])).slice(0, 12).map(([k, e]) => ({k, grp: e.n > 1 || !e.leaf, n: e.n, t: e.leaf && e.n === 1 ? label(e.leaf) : S.cfg.bindings.filter(b => leaderOf(b).id === L.id && b.keys[0] === k).slice(0, 3).map(label).join("、"), dim: e.leaf && h.dim && (S.st.usage.counts[e.leaf.id] || 0) >= 20}));
+  if (!items.length) items = [{k: "E", t: "资源管理器"}, {k: "F", t: "文件夹", grp: true, n: 2}];
+  const rows = h.layout === "classic" ? 10 : 8, cols = Math.ceil(items.length / rows), per = Math.ceil(items.length / cols);
+  const w = Math.round(h.width * .42);
+  return `<div class="hintbox${light ? " light" : ""}" id="hintbox" style="left:${h.x}%;bottom:${h.y}%"><div class="hd"><u>${esc(L.key)}</u></div>
+    <div class="cols" style="grid-template-columns:repeat(${cols},${w}px);grid-template-rows:repeat(${per},auto);grid-auto-flow:column">${items.map(it => `<div class="it${it.dim ? " dim" : ""}"><u>${esc(it.k)}</u><span style="overflow:hidden;text-overflow:ellipsis;${it.grp ? "opacity:.6" : ""}">${esc(it.t)}${h.layout === "classic" && it.grp ? " …" : ""}</span>${it.grp && h.layout !== "classic" ? `<i>${it.n} ›</i>` : ""}</div>`).join("")}</div>
+    ${h.layout === "classic" ? "" : `<div class="ft">Esc 取消${h.searchKey ? "　" + esc(h.searchKey) + " 搜索" : ""}</div>`}</div>`;
+}
+function pageHint() {
+  const h = S.cfg.hint, t = S.cfg.timing;
+  const light = h.theme === "light" || (h.theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
+  const seg = (k, opts) => `<div class="seg">${opts.map(([v, n]) => `<button data-hset="${k}:${v}" class="${String(h[k]) === String(v) ? "on" : ""}">${n}</button>`).join("")}</div>`;
+  $("#page").innerHTML = `<header><div><h1>提示窗</h1><p>忘了按什么的时候，按住引导键等一下，它会列出这一步能按的键。</p></div><span class="sp"></span><button class="sw${h.show ? " on" : ""}" data-hbool="show" aria-label="显示提示窗"></button></header>
+  <div class="cols2"><div><div class="stage${light ? " light" : ""}" id="stage"><div class="bar"></div>${hintMock()}</div><p class="hint" style="margin:8px 2px 0">拖动小窗来决定它出现的位置；按屏幕比例记住，换显示器也在同一处。 <button class="btn ghost sm" data-act="hintReset">恢复默认位置</button></p></div>
+  <div class="card">
+    <div class="row"><div class="t"><b>样式</b><small>现代样式带图标和子项数量；经典样式更紧凑。</small></div>${seg("layout", [["modern","现代"],["classic","经典"]])}</div>
+    <div class="row"><div class="t"><b>颜色</b></div>${seg("theme", [["auto","跟随系统"],["dark","深色"],["light","浅色"]])}</div>
+    <div class="row"><div class="t"><b>出现前等待</b><small>只影响提示窗何时出现，不影响快捷键何时生效。</small></div><input type="range" min="0" max="2000" step="50" data-timing="hintDelayMs" value="${t.hintDelayMs}"><span class="mono" style="width:56px;text-align:right" id="hd">${t.hintDelayMs} ms</span></div>
+    <div class="row"><div class="t"><b>每列宽度</b></div><input type="range" min="180" max="480" step="10" data-hnum="width" value="${h.width}"><span class="mono" style="width:56px;text-align:right" id="hw">${h.width}</span></div>
+    <div class="row"><div class="t"><b>显示在哪块屏幕</b><small>只在多显示器时有区别。</small></div>${seg("monitor", [["focus","当前窗口所在"],["pointer","鼠标所在"]])}</div>
+    <div class="row"><div class="t"><b>搜索键</b><small>提示窗出现时按它，输入文字搜索全部快捷键；↑ ↓ 选择，Enter 运行。</small></div><div style="width:150px">${recHTML("search", h.searchKey ? kcap(h.searchKey) : "", "未设置")}</div></div>
+    <div class="row"><div class="t"><b>淡化常用的</b><small>已经用熟的快捷键（运行 20 次以上）显示得淡一些，突出还不熟的。</small></div><button class="sw${h.dim ? " on" : ""}" data-hbool="dim"></button></div>
+  </div></div>`;
+}
+
+// ---------- general page ----------
+function pageGeneral() {
+  const c = S.cfg, t = c.timing;
+  const num = (k, title, desc, min, max) => `<div class="row"><div class="t"><b>${title}</b><small>${desc}</small></div><input type="number" min="${min}" max="${max}" step="10" data-timing="${k}" value="${t[k]}"><span class="hint">毫秒</span></div>`;
+  $("#page").innerHTML = `<header><div><h1>通用</h1><p>启动、排除的程序、按键时序和备份。</p></div></header>
+  <div class="card"><div class="row"><div class="t"><b>开机自动启动</b><small>登录 Windows 后在后台运行，只在托盘显示一个图标。</small></div><button class="sw${S.st.autostart ? " on" : ""}" data-act="autostart"></button></div>
+    <div class="row"><div class="t"><b>全屏游戏中停用</b><small>检测到独占全屏的游戏时不拦截任何按键。</small></div><button class="sw${c.disableInFullscreen ? " on" : ""}" data-cbool="disableInFullscreen"></button></div>
+    <div class="row"><div class="t"><b>在这些程序里完全停用</b><small>在这些程序里引导键就是普通按键。</small><div class="keys" style="gap:6px;margin-top:8px">${c.disabledApps.map((x, i) => `<span class="chip">${esc(x)}<button data-undis="${i}">${ico("x")}</button></span>`).join("")}<button class="btn sm" data-pick="disabled">${ico("plus")}添加程序</button></div></div></div></div>
+  <div class="card"><h3>按键时序</h3><p>刚开始用建议保留默认值。前三项只对“按住 · 保留轻点”的引导键起作用。</p>
+    ${num("activationMs", "就绪等待", "按下引导键后，这段时间内按的键算作普通打字。觉得快捷键反应慢就调小，打字时误触就调大。", 0, 1000)}
+    ${num("typingSuppressMs", "打字后的保护时间", "刚打完字紧接着按引导键时，改用这个更长的等待。快速打字时空格偶尔被吞就调大。", 0, 2000)}
+    ${num("tapReplayMs", "轻点仍输入本键的时限", "按住不超过这个时间并且没有触发快捷键，松开时照常输入这个键；超过则什么都不输入。", 50, 60000)}
+    ${num("tapTimeoutMs", "轻按型引导键等待触发键", "轻按引导键后，这段时间内没有按触发键就自动退出。", 300, 60000)}
+    ${num("modTapMs", "单个修饰键的轻按时限", "修饰键按下到松开不超过这个时间才算一次轻按。", 80, 2000)}</div>
+  <div class="card"><h3>备份与恢复</h3><p>每次保存前的版本都会留一份；每十分钟最多另存一份带时间的备份，保留最近 30 份。配置文件在 <span class="mono">${esc(S.st.configPath)}</span>，可以直接编辑，保存后自动生效。</p>
+    <div class="inline" style="margin-bottom:10px"><button class="btn" data-act="exportAll">${ico("up")}导出完整配置</button><button class="btn" data-act="import">${ico("down")}从文件恢复或导入</button></div>
+    <div id="backups" class="hint">正在读取备份…</div></div>`;
+  api("/api/backups").then(r => {
+    const el = $("#backups"); if (!el) return;
+    el.className = ""; el.innerHTML = r.backups.length ? r.backups.slice(0, 12).map(b => `<div class="row"><div class="t"><b>${esc(b.time || b.name)}</b><small>${b.bindings} 条快捷键</small></div><button class="btn sm" data-restore="${esc(b.name)}">恢复到这一份</button></div>`).join("") : `<span class="hint">还没有自动备份。</span>`;
+  }).catch(() => {});
+}
+
+// ---------- activity & about ----------
+const LOG_WORD = {tap: ["输入", "轻点了引导键，照常输入"], typing: ["打字", "按得很快，判定为打字，两个键都照常输入"], run: ["运行", ""], bypass: ["放行", "当前程序或全屏游戏里已停用"], cancel: ["取消", ""], timeout: ["超时", "没有等到触发键"], leader: ["引导", "轻按型引导键已就绪"]};
+function pageActivity() {
+  const L = S.log;
+  $("#page").innerHTML = `<header><div><h1>活动</h1><p>记录 SpaceHop 的每一次判定，用来弄清某次按键为什么触发或没有触发。只记判定结果，不记你输入的内容；只保存在内存里（最近 300 条），关闭记录即清空。</p></div><span class="sp"></span><button class="btn${L.on ? "" : " primary"}" data-act="log">${L.on ? "停止并清空" : "开始记录"}</button></header>
+  <div class="list log" id="log">${logHTML()}</div>`;
+  if (L.on && !L.timer) L.timer = setInterval(pollLog, 1000);
+}
+function logHTML() {
+  const L = S.log;
+  if (!L.on) return `<div class="empty"><b>记录已关闭</b>点“开始记录”，然后去别的窗口按几次引导键，再回来看。</div>`;
+  if (!L.entries.length) return `<div class="empty"><b>正在等待按键…</b>去别的窗口按住引导键试试。</div>`;
+  return [...L.entries].reverse().map(e => { const [kind, ...rest] = e.text.split(" "); const w = LOG_WORD[kind] || [kind, ""]; return `<div class="e"><time class="mono">${esc(e.time)}</time><span><span class="tag ${kind === "run" ? "run" : ""}">${w[0]}</span></span><span><b>${esc(rest.join(" "))}</b> <span class="hint">${w[1]}</span></span><span class="app mono">${esc(e.app || "")}</span></div>`; }).join("");
+}
+async function pollLog() {
+  if (document.hidden || S.page !== "activity") return;
+  try { const r = await api("/api/activity", "POST", {on: true}); if (r.entries.length !== S.log.entries.length) { S.log.entries = r.entries; $("#log").innerHTML = logHTML(); } } catch {}
+}
+function pageAbout() {
+  const top = Object.entries(S.st.usage.counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => [S.cfg.bindings.find(b => b.id === id), n]).filter(x => x[0]);
+  $("#page").innerHTML = `<header><div><h1>关于</h1><p>SpaceHop ${esc(S.st.version)}</p></div></header>
+  <div class="cols2"><div class="card"><div class="label">已经替你运行</div><div class="stat">${S.st.usage.total.toLocaleString()} <span style="font-size:15px;font-weight:500;color:var(--muted)">次快捷键</span></div>
+    ${top.length ? `<div style="margin-top:14px">${top.map(([b, n]) => `<div class="row"><span class="keys">${chordCaps(leaderOf(b).key, "lead")}${b.keys.map(kcap).join("")}</span><div class="t"><b>${esc(label(b))}</b></div><span class="hint">${n} 次</span></div>`).join("")}</div>` : `<p class="hint" style="margin:10px 0 0">用起来以后，这里会列出你最常用的几个。</p>`}</div>
+  <div class="card"><h3>命令行</h3><p>SpaceHop 运行时，再次运行它并带上参数，可以从脚本或其他工具里控制它。</p><div class="cmds">
+    <code class="mono">--settings</code><span>打开这个设置窗口</span><code class="mono">--toggle</code><span>暂停 / 恢复（还有 --enable、--disable）</span>
+    <code class="mono">--run "名称"</code><span>运行一条快捷键的动作，按名称或 id</span><code class="mono">--reload</code><span>重新读取配置文件</span><code class="mono">--quit</code><span>退出</span></div></div></div>
+  <div class="card"><h3>隐私</h3><p style="margin:0">SpaceHop 不联网，不记录你输入的内容。设置页只在本机打开，每次启动使用一个随机口令。配置保存在你的用户目录里，是可以直接阅读和编辑的 JSON。</p></div>`;
+}
+
+// ---------- events ----------
+function setA(k, v) { const a = S.draft.action; if (v === "" || v == null || v === false) delete a[k]; else a[k] = v; }
+document.addEventListener("input", e => {
+  const t = e.target, d = t.dataset;
+  if (t.id === "q") { S.q = t.value.trim(); S.shown = 200; $("#list").innerHTML = listHTML(); count(); return; }
+  if (t.id === "pq") return renderPick(t.value);
+  if (d.a && S.draft) { setA(d.a, t.value); if (t.tagName === "SELECT") rerenderRec(); else { const tb = $('[data-act="test"]'); if (tb) tb.disabled = incomplete(S.draft.action); } return; }
+  if (d.d && S.draft) { S.draft[d.d] = t.value; return; }
+  if (d.rect && S.draft) { const r = S.draft.action.rect || [10, 10, 80, 80]; r[+d.rect] = +t.value || 0; S.draft.action.rect = r; return; }
+  if (d.timing) { S.cfg.timing[d.timing] = +t.value || 0; if ($("#hd") && d.timing === "hintDelayMs") $("#hd").textContent = t.value + " ms"; return saveSoon(); }
+  if (d.hnum) { S.cfg.hint[d.hnum] = +t.value; $("#hw").textContent = t.value; $("#stage").lastElementChild.outerHTML = hintMock(); return saveSoon(); }
+});
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button,[data-rec],.b"), d = t ? t.dataset : {};
+  if (!t) { if (e.target.id === "scrim") closeEditor(); if (e.target.id === "scrim2") closeDialog(); return; }
+  const D = S.draft;
+  if (d.page) return go(d.page);
+  if (t.id === "power") { S.cfg.enabled = !S.cfg.enabled; return save(S.cfg, true); }
+  // recorders
+  if (d.clear) { e.stopPropagation(); if (d.clear === "keys") D.keys = []; else if (d.clear === "chord") delete D.action.chord; else if (d.clear === "search") { S.cfg.hint.searchKey = ""; saveSoon(); return render(); } return rerenderRec(); }
+  if (d.rec) return S.rec === d.rec ? stopRec() : startRec(d.rec);
+  // keys page
+  if (d.leader) { S.leader = d.leader; S.path = []; return refreshKeys(true); }
+  if (d.crumb) { S.path = S.path.slice(0, +d.crumb); return refreshKeys(true); }
+  if (d.key) {
+    if (t.classList.contains("dead") || t.classList.contains("lead")) return;
+    const e2 = levelOf(curLeader().id, S.path).get(d.key);
+    if (!e2) return openEditor(newBinding([...S.path, d.key]), true);
+    if (e2.n > 1 || !e2.leaf) { S.path = [...S.path, d.key]; S.q = ""; return pageKeys(); }
+    return openEditor(e2.leaf);
+  }
+  if (d.ck) { e.stopPropagation(); S.sel.has(d.ck) ? S.sel.delete(d.ck) : S.sel.add(d.ck); return refreshKeys(); }
+  if (d.toggle) { e.stopPropagation(); const b = S.cfg.bindings.find(x => x.id === d.toggle); b.enabled = !b.enabled; await save(S.cfg, true); return refreshKeys(true); }
+  if (t.classList.contains("b")) return openEditor(S.cfg.bindings.find(x => x.id === d.id));
+  if (d.bulk) {
+    const ids = S.sel, list = S.cfg.bindings.filter(b => ids.has(b.id));
+    if (d.bulk === "none") { ids.clear(); return refreshKeys(); }
+    if (d.bulk === "copy") { await navigator.clipboard.writeText(JSON.stringify(bundle(list))).catch(() => {}); ids.clear(); refreshKeys(); return toast(`已复制 ${list.length} 条，可以在“导入”里粘贴`); }
+    if (d.bulk === "export") return download("spacehop-bindings.json", bundle(list));
+    if (d.bulk === "del") { if (!confirm(`删除选中的 ${list.length} 条快捷键？`)) return; S.cfg.bindings = S.cfg.bindings.filter(b => !ids.has(b.id)); }
+    else list.forEach(b => b.enabled = d.bulk === "on");
+    ids.clear(); await save(S.cfg); return refreshKeys(true);
+  }
+  // editor
+  if (d.type) { D.action = {type: d.type}; if (d.type === "inputMethod" && !S.layouts) { try { S.layouts = (await api("/api/layouts")).layouts; } catch { S.layouts = []; } } return rerenderRec(); }
+  if (d.aset) { const [k, v] = d.aset.split(":"); setA(k, k === "paste" ? !!v : v); return rerenderRec(); }
+  if (d.abool) { setA(d.abool, !D.action[d.abool]); return rerenderRec(); }
+  if (d.dset) { const [k, v] = d.dset.split(":"); D[k] = v; return rerenderRec(); }
+  if (d.dleader !== undefined) { D.leader = d.dleader; return rerenderRec(); }
+  if (d.scope) { D.scope.mode = d.scope; return rerenderRec(); }
+  if (d.unscope) { D.scope.apps.splice(+d.unscope, 1); return rerenderRec(); }
+  if (d.uncycle) { D.action.cycle.splice(+d.uncycle, 1); return rerenderRec(); }
+  if (d.ph) { const ta = $('textarea[data-a="text"]'); ta.setRangeText(d.ph, ta.selectionStart, ta.selectionEnd, "end"); setA("text", ta.value); return ta.focus(); }
+  if (d.pick) return pickApp(a => {
+    if (d.pick === "path") { D.action.path = a.path; if (a.exe) D.action.exe = a.exe; else delete D.action.exe; }
+    else if (d.pick === "with") D.action.with = a.path;
+    else if (d.pick === "cycle") { (D.action.cycle = D.action.cycle || []).length < S.st.limits.cycle && D.action.cycle.push({name: a.name, path: a.path, exe: a.exe}); }
+    else { const exe = a.exe || (/\.exe$/i.test(a.path) ? a.path.split(/[\\/]/).pop().toLowerCase() : ""); if (!exe) return toast("这个程序没有可识别的 exe 名称，不能用来限定范围", true);
+      if (d.pick === "scope") { if (!D.scope.apps.includes(exe)) D.scope.apps.push(exe); }
+      else { if (!S.cfg.disabledApps.includes(exe)) S.cfg.disabledApps.push(exe); saveSoon(); return render(); } }
+    rerenderRec();
+  });
+  if (d.app) { const a = S.apps[+d.app], f = S.onPick; closeDialog(); return f && f(a); }
+  // leaders
+  if (d.lmode) { const [i, m] = d.lmode.split(":"), l = S.cfg.leaders[+i]; if (l.mode === m) return; l.mode = m; l.key = m === "hold" ? (l.key.includes("+") || isMod(l.key) ? "F12" : l.key) : "Alt+" + (/^[A-Z]$/.test(l.key) ? l.key : "S"); l.keepTap = false; if (!await save(S.cfg, true)) S.cfg = clone(S.st.config); return render(); }
+  if (d.lkeep) { const l = S.cfg.leaders[+d.lkeep]; l.keepTap = !l.keepTap; saveSoon(); return render(); }
+  if (d.ldefault) { const [l] = S.cfg.leaders.splice(+d.ldefault, 1), old = S.cfg.leaders[0].id; S.cfg.bindings.forEach(b => { if (!b.leader) b.leader = old; else if (b.leader === l.id) b.leader = ""; }); S.cfg.leaders.unshift(l); await save(S.cfg); return render(); }
+  if (d.ldel) { const l = S.cfg.leaders[+d.ldel], n = S.cfg.bindings.filter(b => leaderOf(b).id === l.id).length; if (n && !confirm(`移除引导键 ${l.key}，同时删除它的 ${n} 条快捷键？`)) return; S.cfg.bindings = S.cfg.bindings.filter(b => leaderOf(b).id !== l.id); S.cfg.leaders.splice(+d.ldel, 1); if (+d.ldel === 0) S.cfg.bindings.forEach(b => { if (b.leader === S.cfg.leaders[0].id) b.leader = ""; }); S.leader = ""; await save(S.cfg); return render(); }
+  // hint / general
+  if (d.hset) { const [k, v] = d.hset.split(":"); S.cfg.hint[k] = v; saveSoon(); return render(); }
+  if (d.hbool) { S.cfg.hint[d.hbool] = !S.cfg.hint[d.hbool]; saveSoon(); return render(); }
+  if (d.cbool) { S.cfg[d.cbool] = !S.cfg[d.cbool]; saveSoon(); return render(); }
+  if (d.undis) { S.cfg.disabledApps.splice(+d.undis, 1); saveSoon(); return render(); }
+  if (d.restore) { if (!confirm("用这份备份替换当前的全部设置？当前配置会先自动备份。")) return; try { const r = await api("/api/restore", "POST", {name: d.restore}); S.cfg = r.config; S.st.config = r.config; toast("已恢复"); renderRail(); render(); } catch (err) { toast(err.message, true); } return; }
+  if (d.imp) return doImport(d.imp);
+  switch (d.act) {
+    case "new": return openEditor(newBinding(), true);
+    case "close": return closeEditor();
+    case "closeDialog": return closeDialog();
+    case "more": S.shown += 200; return refreshKeys();
+    case "save": {
+      const b = clone(D); delete b._new;
+      if (!b.keys.length && leaderOf(b).mode === "hold") return toast("先录制至少一个触发键", true);
+      const cfg = clone(S.cfg), at = cfg.bindings.findIndex(x => x.id === b.id);
+      if (at >= 0) cfg.bindings[at] = b; else cfg.bindings.push(b);
+      if (await save(cfg)) { S.path = b.keys.slice(0, Math.min(S.path.length, b.keys.length - 1)).every((k, i) => S.path[i] === k) ? S.path : []; closeEditor(); }
+      return;
+    }
+    case "delete": { if (!confirm(`删除 “${label(D)}”？`)) return; const cfg = clone(S.cfg); cfg.bindings = cfg.bindings.filter(x => x.id !== D.id); if (await save(cfg)) closeEditor(); return; }
+    case "dup": { const b = clone(D); b.id = ""; b._new = true; b.keys = []; S.draft = b; toast("已复制，录一个新的触发键后保存"); renderEditor(); return startRec("keys"); }
+    case "test": {
+      const front = FRONT_TYPES.has(D.action.type);
+      if (front) toast("2.5 秒后执行，请切到要操作的窗口");
+      try { await api("/api/test", "POST", {action: D.action, delayMs: front ? 2500 : 0}); if (!front) toast("已执行"); } catch (err) { toast(err.message, true); }
+      return;
+    }
+    case "export": return download("spacehop-bindings.json", bundle(S.q ? visibleBindings() : S.cfg.bindings));
+    case "exportAll": return download("spacehop-config.json", S.cfg);
+    case "import": return showDialog(`<header><h2>导入</h2></header><div class="body" style="padding:0 18px 14px"><p style="margin:0 0 12px;color:var(--muted)">可以导入之前导出的快捷键文件、完整配置，或者刚才用“复制”放进剪贴板的快捷键。</p><div class="inline"><button class="btn primary" data-act="importFile">${ico("down")}选择文件…</button><button class="btn" data-act="importClip">${ico("copy")}从剪贴板粘贴</button></div></div><footer><button class="btn" data-act="closeDialog">取消</button></footer>`);
+    case "importFile": return readFile(importDialog);
+    case "importClip": try { return importDialog(JSON.parse(await navigator.clipboard.readText())); } catch { return toast("剪贴板里没有 SpaceHop 的快捷键", true); }
+    case "restoreFull": closeDialog(); if (await save(S.pendingFull)) render(); return;
+    case "addLeader": { const used = new Set(S.cfg.leaders.map(l => l.key)), key = ["CapsLock", "F12", "F11", "F10", "F9", "F8", "F7", "F6"].find(k => !used.has(k)); S.cfg.leaders.push({id: "", mode: "hold", key, keepTap: false}); await save(S.cfg, true); return render(); }
+    case "autostart": try { S.st.autostart = (await api("/api/autostart", "POST", {on: !S.st.autostart})).autostart; } catch (err) { toast(err.message, true); } return render();
+    case "hintReset": S.cfg.hint.x = 50; S.cfg.hint.y = 8; saveSoon(); return render();
+    case "log": S.log.on = !S.log.on; clearInterval(S.log.timer); S.log.timer = 0; try { S.log.entries = (await api("/api/activity", "POST", {on: S.log.on})).entries; } catch {} return render();
+  }
+});
+// Drag the miniature hint window to place the real one.
+document.addEventListener("pointerdown", e => {
+  const box = e.target.closest("#hintbox"); if (!box) return;
+  const stage = $("#stage").getBoundingClientRect(); box.setPointerCapture(e.pointerId);
+  const r = box.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = r.bottom - e.clientY;
+  const move = ev => {
+    const x = Math.max(0, Math.min(100, (ev.clientX - dx - stage.left) / stage.width * 100)), y = Math.max(0, Math.min(90, (stage.bottom - ev.clientY - dy) / stage.height * 100));
+    S.cfg.hint.x = Math.round(x); S.cfg.hint.y = Math.round(y); box.style.left = x + "%"; box.style.bottom = y + "%";
+  };
+  const up = () => { box.removeEventListener("pointermove", move); box.removeEventListener("pointerup", up); saveSoon(); };
+  box.addEventListener("pointermove", move); box.addEventListener("pointerup", up);
+});
+
+(async function start() {
+  try {
+    S.st = await api("/api/state"); S.cfg = clone(S.st.config);
+    renderRail(); render();
+  } catch (e) {
+    document.body.innerHTML = `<div class="empty" style="padding-top:120px"><b>无法连接到 SpaceHop</b>请从托盘图标重新打开设置。（${esc(e.message)}）</div>`;
+  }
+})();
+</script>
+</body>
+</html>

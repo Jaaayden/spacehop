@@ -1,0 +1,4 @@
+dist/
+*.syso
+selftest*/
+.DS_Store

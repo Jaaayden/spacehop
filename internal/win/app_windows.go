@@ -50,6 +50,7 @@ type App struct {
 	hookNs     []int64
 
 	hwnd      uintptr
+	hintDue   bool // a redraw of the hint is posted (UI thread only)
 	overlay   overlay
 	kbHook    uintptr
 	mouseHook uintptr
@@ -283,7 +284,10 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 		a.openSettings()
 		return 0
 	case msgHint:
-		a.drawHint()
+		if a.hintDue { // not hidden again in the meantime
+			a.hintDue = false
+			a.drawHint()
+		}
 		return 0
 	case msgApply:
 		if c := a.pending.Swap(nil); c != nil {
@@ -429,6 +433,7 @@ func (a *App) Hint(delayMs int) {
 		// Never draw inside the keyboard hook: post it, so the key event
 		// is answered at once.
 		pKillTimer.Call(a.hwnd, timerHint)
+		a.hintDue = true
 		pPostMessage.Call(a.hwnd, msgHint, 0, 0)
 		return
 	}
@@ -436,6 +441,7 @@ func (a *App) Hint(delayMs int) {
 }
 
 func (a *App) HideHint() {
+	a.hintDue = false
 	pKillTimer.Call(a.hwnd, timerHint)
 	a.overlay.hide()
 }

@@ -23,8 +23,9 @@ import (
 // every build; the report and screenshots are kept as build artifacts.
 
 type selfTest struct {
-	a   *App
-	out string
+	a    *App
+	out  string
+	sink uintptr // our own window: test keys must land here, nowhere else
 
 	mu     sync.Mutex
 	seen   []string // key events that got past SpaceHop, in order
@@ -58,6 +59,24 @@ func sinkProc(nCode, wParam, lParam uintptr) uintptr {
 	}
 	r, _, _ := pCallNextHookEx.Call(0, nCode, wParam, lParam)
 	return r
+}
+
+var plainProcCB = syscall.NewCallback(func(hwnd, message, wParam, lParam uintptr) uintptr {
+	r, _, _ := pDefWindowProc.Call(hwnd, message, wParam, lParam)
+	return r
+})
+
+// focus makes sure our own window has the keyboard. Keys are only ever
+// sent when it does, so they cannot reach another program.
+func (t *selfTest) focus() bool {
+	for i := 0; i < 5; i++ {
+		if fg, _, _ := pGetForegroundWindow.Call(); fg == t.sink && fg != 0 {
+			return true
+		}
+		activate(t.sink)
+		wait(200)
+	}
+	return false
 }
 
 func (t *selfTest) take() (seen, ran string) {
@@ -170,6 +189,14 @@ func SelfTest(out, version string) int {
 	a.beforeHook = func() {
 		inst, _, _ := pGetModuleHandle.Call(0)
 		pSetWindowsHookEx.Call(whKeyboardLL, sinkProcCB, inst, 0)
+		brush, _, _ := pCreateSolidBrush.Call(0x004A3F38)
+		wc := wndClassEx{WndProc: plainProcCB, Instance: inst, ClassName: u16("SpaceHopSelfTest"), Background: brush}
+		wc.Size = uint32(unsafe.Sizeof(wc))
+		pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+		// WS_OVERLAPPEDWINDOW | WS_VISIBLE
+		t.sink, _, _ = pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(u16("SpaceHopSelfTest"))),
+			uintptr(unsafe.Pointer(u16("SpaceHop self-test"))), 0x10CF0000, 0, 0, 800, 600, 0, 0, inst, 0)
+		pShowWindow.Call(t.sink, 3) // maximised: a plain backdrop for the screenshots
 	}
 	done := make(chan struct{})
 	go func() {
@@ -229,11 +256,19 @@ func (t *selfTest) run() {
 	t.take()
 	t.check("tray icon", a.tray.ok, "accepted by the shell: %v", a.tray.ok)
 
+	if !t.check("own window has focus", t.focus(), "keys are sent only to the self-test window") {
+		return
+	}
+
 	// ---- the leader key against real input ----
 	tap(sp)
 	seen, ran := t.take()
 	t.check("tap types space", seen == "*Space↓ *Space↑" && ran == "", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 1")
+		return
+	}
 	press(sp, true)
 	wait(120)
 	tap('N')
@@ -241,8 +276,16 @@ func (t *selfTest) run() {
 	seen, ran = t.take()
 	t.check("hold runs shortcut", seen == "" && ran == "Notepad", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 2")
+		return
+	}
 	tap('X') // typing just before
 	t.take()
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 3")
+		return
+	}
 	press(sp, true)
 	wait(10)
 	press('N', true)
@@ -254,6 +297,10 @@ func (t *selfTest) run() {
 	t.check("fast typing passes", seen == "*Space↓ *N↓ Space↑ N↑" && ran == "", "seen %q ran %q", seen, ran)
 
 	wait(300)
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 4")
+		return
+	}
 	press(sp, true)
 	wait(150)
 	tap('Q') // not a shortcut
@@ -261,6 +308,10 @@ func (t *selfTest) run() {
 	seen, ran = t.take()
 	t.check("unbound key types", seen == "*Space↓ *Q↓ Q↑ Space↑" && ran == "", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 5")
+		return
+	}
 	press(vkOf("LShift"), true)
 	wait(30)
 	tap(sp)
@@ -269,6 +320,10 @@ func (t *selfTest) run() {
 	t.check("shift+space untouched", seen == "LShift↓ Space↓ Space↑ LShift↑", "seen %q", seen)
 
 	// ---- hint window ----
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 6")
+		return
+	}
 	press(sp, true)
 	wait(150)
 	early := t.hintVisible()
@@ -291,12 +346,20 @@ func (t *selfTest) run() {
 	seen, ran = t.take()
 	t.check("search runs result", seen == "" && ran != "" && !t.hintVisible(), "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 7")
+		return
+	}
 	press(sp, true)
 	wait(650)
 	press(sp, false)
 	seen, ran = t.take()
 	t.check("long hold types nothing", seen == "" && ran == "" && !t.hintVisible(), "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 8")
+		return
+	}
 	press(sp, true)
 	wait(150)
 	tap('F')
@@ -307,6 +370,10 @@ func (t *selfTest) run() {
 	seen, ran = t.take()
 	t.check("sequences", seen == "" && ran == "Downloads,右半屏", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 9")
+		return
+	}
 	press(sp, true)
 	wait(150)
 	tap('F')
@@ -317,11 +384,19 @@ func (t *selfTest) run() {
 	t.check("esc cancels", seen == "" && ran == "", "seen %q ran %q", seen, ran)
 
 	t.apply(func(c *config.Config) { c.Hint.Theme, c.Hint.Layout = "light", "modern" })
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 10")
+		return
+	}
 	press(sp, true)
 	wait(600)
 	t.shot("hint-light")
 	press(sp, false)
 	t.apply(func(c *config.Config) { c.Hint.Theme, c.Hint.Layout = "dark", "classic" })
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 11")
+		return
+	}
 	press(sp, true)
 	wait(600)
 	t.shot("hint-classic")
@@ -329,6 +404,10 @@ func (t *selfTest) run() {
 	t.take()
 
 	// ---- other leaders ----
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 12")
+		return
+	}
 	press(f9, true)
 	wait(5)
 	tap('A')
@@ -337,6 +416,10 @@ func (t *selfTest) run() {
 	t.check("dedicated hold leader", seen == "" && ran == "On F9", "seen %q ran %q", seen, ran)
 
 	ctrl, alt := vkOf("LCtrl"), vkOf("LAlt")
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 13")
+		return
+	}
 	press(ctrl, true)
 	press(alt, true)
 	wait(30)
@@ -348,20 +431,28 @@ func (t *selfTest) run() {
 	seen, ran = t.take()
 	t.check("tap combination leader", !strings.Contains(seen, "J") && !strings.Contains(seen, "K") && ran == "On chord", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 14")
+		return
+	}
 	tap(vkOf("RCtrl"))
 	wait(60)
 	tap('K')
 	seen, ran = t.take()
 	t.check("tap modifier leader", !strings.Contains(seen, "K") && ran == "On RCtrl", "seen %q ran %q", seen, ran)
 
+	if !t.focus() {
+		t.logf("FAIL", "focus lost", "stopped before step 15")
+		return
+	}
 	press(vkOf("RCtrl"), true)
 	wait(30)
-	tap('C')
+	tap('M')
 	press(vkOf("RCtrl"), false)
 	wait(60)
 	tap('K')
 	seen, ran = t.take()
-	t.check("ctrl+c is not a tap", strings.Contains(seen, "K↓") && ran == "", "seen %q ran %q", seen, ran)
+	t.check("ctrl+key is not a tap", strings.Contains(seen, "K↓") && ran == "", "seen %q ran %q", seen, ran)
 
 	// ---- cost of the hook ----
 	ns := append([]int64(nil), a.hookNs...)

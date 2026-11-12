@@ -135,6 +135,7 @@ func vkOf(name string) uint32 { v, _ := config.VK(name); return v }
 func testConfig() *config.Config {
 	c := config.Default()
 	c.Timing.HintDelayMs = 250
+	c.Hint.Theme = "dark"
 	c.Leaders = []config.Leader{
 		{ID: "space", Mode: config.Hold, Key: "Space", KeepTap: true},
 		{ID: "f9", Mode: config.Hold, Key: "F9"},
@@ -269,6 +270,7 @@ func (t *selfTest) run() {
 		t.logf("FAIL", "focus lost", "stopped before step 1")
 		return
 	}
+	wait(300) // past the guard that follows typing
 	press(sp, true)
 	wait(120)
 	tap('N')
@@ -429,7 +431,7 @@ func (t *selfTest) run() {
 	wait(60)
 	tap('K')
 	seen, ran = t.take()
-	t.check("tap combination leader", !strings.Contains(seen, "J") && !strings.Contains(seen, "K") && ran == "On chord", "seen %q ran %q", seen, ran)
+	t.check("tap combination leader", !strings.Contains(seen, "J↓") && !strings.Contains(seen, "K↓") && ran == "On chord", "seen %q ran %q", seen, ran)
 
 	if !t.focus() {
 		t.logf("FAIL", "focus lost", "stopped before step 14")
@@ -439,7 +441,7 @@ func (t *selfTest) run() {
 	wait(60)
 	tap('K')
 	seen, ran = t.take()
-	t.check("tap modifier leader", !strings.Contains(seen, "K") && ran == "On RCtrl", "seen %q ran %q", seen, ran)
+	t.check("tap modifier leader", !strings.Contains(seen, "K↓") && ran == "On RCtrl", "seen %q ran %q", seen, ran)
 
 	if !t.focus() {
 		t.logf("FAIL", "focus lost", "stopped before step 15")
@@ -459,7 +461,7 @@ func (t *selfTest) run() {
 	sort.Slice(ns, func(i, j int) bool { return ns[i] < ns[j] })
 	if len(ns) > 0 {
 		med, max := time.Duration(ns[len(ns)/2]), time.Duration(ns[len(ns)-1])
-		t.check("hook latency", max < 50*time.Millisecond, "%d key events, median %v, max %v", len(ns), med, max)
+		t.check("hook latency", max < 20*time.Millisecond, "%d key events, median %v, max %v", len(ns), med, max)
 	}
 
 	t.actions()
@@ -568,10 +570,12 @@ func (t *selfTest) actions() {
 	wait(400)
 	z, _, _ := pIsZoomed.Call(np)
 	t.check("window maximize", z != 0, "zoomed %v", z != 0)
+	_ = run(config.Action{Type: config.Window, Window: "custom", Rect: []int{10, 10, 50, 50}})
+	wait(400)
 	_ = run(config.Action{Type: config.Window, Window: "center"})
 	wait(400)
 	v = visible()
-	t.check("window center", near(v.Left-wa.Left, wa.Right-v.Right) && near(v.Top-wa.Top, wa.Bottom-v.Bottom), "window %v", v)
+	t.check("window center", v.Right-v.Left < wa.Right-wa.Left && near(v.Left-wa.Left, wa.Right-v.Right) && near(v.Top-wa.Top, wa.Bottom-v.Bottom), "window %v", v)
 	t.shot("desktop")
 
 	_ = run(config.Action{Type: config.OpenApp, Path: "notepad.exe", IfRunning: "hide"})

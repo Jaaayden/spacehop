@@ -285,6 +285,9 @@ func windowAction(name string, custom []int) error {
 			activate(wins[len(wins)-1])
 		}
 	case "center":
+		if z, _, _ := pIsZoomed.Call(h); z != 0 {
+			pShowWindow.Call(h, swRestore) // measure the restored size
+		}
 		o, l, t, r, b := frame(h)
 		w, ht := o.Right-o.Left-l-r, o.Bottom-o.Top-t-b
 		place(h, wa.Left+(ww-w)/2, wa.Top+(wh-ht)/2, w, ht)

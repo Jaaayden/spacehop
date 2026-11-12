@@ -26,6 +26,7 @@ const (
 	msgSettings = wmApp + 3
 	msgNotify   = wmApp + 4
 	msgCall     = wmApp + 5
+	msgHint     = wmApp + 6
 	timerHint   = 1
 	timerAnim   = 2
 	timerSeq    = 3
@@ -281,6 +282,9 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 	case msgSettings:
 		a.openSettings()
 		return 0
+	case msgHint:
+		a.drawHint()
+		return 0
 	case msgApply:
 		if c := a.pending.Swap(nil); c != nil {
 			a.eng.SetConfig(c)
@@ -422,8 +426,10 @@ func (a *App) Run(b *config.Binding) {
 
 func (a *App) Hint(delayMs int) {
 	if delayMs <= 0 {
+		// Never draw inside the keyboard hook: post it, so the key event
+		// is answered at once.
 		pKillTimer.Call(a.hwnd, timerHint)
-		a.drawHint()
+		pPostMessage.Call(a.hwnd, msgHint, 0, 0)
 		return
 	}
 	pSetTimer.Call(a.hwnd, timerHint, uintptr(delayMs), 0)

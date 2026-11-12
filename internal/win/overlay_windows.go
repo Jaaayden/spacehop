@@ -432,7 +432,7 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 		help := "Esc 取消"
 		switch {
 		case v.Search:
-			help = "↑ ↓ 选择    Enter 运行    Esc 关闭"
+			help = "方向键 选择    Enter 运行    Esc 关闭"
 		case len(v.Path) > 1:
 			help = "Backspace 返回上一级    Esc 取消"
 		}

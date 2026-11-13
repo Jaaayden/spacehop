@@ -4,6 +4,7 @@ import (
 	"unsafe"
 
 	"spacehop/internal/config"
+	"spacehop/internal/i18n"
 	"spacehop/internal/icon"
 )
 
@@ -48,7 +49,7 @@ func (t *tray) data(enabled bool) *notifyIconData {
 	tip := "SpaceHop"
 	if !enabled {
 		d.Icon = t.iconOff
-		tip = "SpaceHop（已暂停）"
+		tip = i18n.T("SpaceHop（已暂停）")
 	}
 	copy(d.Tip[:len(d.Tip)-1], w16(tip))
 	return d
@@ -147,15 +148,15 @@ func (a *App) trayMenu() {
 	}
 	sep := func() { pAppendMenu.Call(menu, 0x800, 0, 0) }
 	cfg := a.Config()
-	add(cmdSettings, "快捷键与设置…", false)
-	add(cmdToggle, "启用 SpaceHop", cfg.Enabled)
-	add(cmdAutostart, "开机自动启动", a.Autostart())
+	add(cmdSettings, i18n.T("快捷键与设置…"), false)
+	add(cmdToggle, i18n.T("启用 SpaceHop"), cfg.Enabled)
+	add(cmdAutostart, i18n.T("开机自动启动"), a.Autostart())
 	sep()
-	add(cmdFolder, "打开配置文件夹", false)
-	add(cmdReload, "重新载入配置文件", false)
-	pAppendMenu.Call(menu, 0x1 /* MF_GRAYED */, 0, uintptr(unsafe.Pointer(u16("版本 "+a.Version))))
+	add(cmdFolder, i18n.T("打开配置文件夹"), false)
+	add(cmdReload, i18n.T("重新载入配置文件"), false)
+	pAppendMenu.Call(menu, 0x1 /* MF_GRAYED */, 0, uintptr(unsafe.Pointer(u16(i18n.T("版本 ")+a.Version))))
 	sep()
-	add(cmdQuit, "退出", false)
+	add(cmdQuit, i18n.T("退出"), false)
 
 	var pt point
 	pGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
@@ -170,7 +171,7 @@ func (a *App) trayMenu() {
 		a.openSettings()
 	case cmdAutostart:
 		if err := a.SetAutostart(!a.Autostart()); err != nil {
-			a.Notify("无法修改开机启动：" + err.Error())
+			a.Notify(i18n.T("无法修改开机启动：") + err.Error())
 		}
 	case cmdFolder:
 		_ = shellExecute(config.Dir(), "", "", swShowNormal)

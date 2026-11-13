@@ -17,6 +17,7 @@ import (
 
 	"spacehop/internal/config"
 	"spacehop/internal/engine"
+	"spacehop/internal/i18n"
 )
 
 const (
@@ -40,8 +41,14 @@ type notice struct{ title, text, url string }
 // App owns the UI thread: the hidden main window, the hooks, the hint
 // window and the tray icon. Everything that touches the engine runs on it.
 type App struct {
-	Version      string
-	OpenSettings func() // set by main; opens the settings page
+	Version string
+	// ShowOnStart opens the settings window once the program is running.
+	ShowOnStart bool
+
+	// While a key recorder in the settings window is live, the hook hands
+	// keys to that window. recTick lets the hand-over expire on its own.
+	recHwnd atomic.Uintptr
+	recTick atomic.Uint32
 
 	// Set only by the self-test: called on the UI thread before the keyboard
 	// hook is installed, and instead of running a shortcut's action.
@@ -111,9 +118,15 @@ func (a *App) Config() *config.Config { return a.current.Load() }
 
 // Apply switches to a new configuration; safe to call from any thread.
 func (a *App) Apply(c *config.Config) error {
+	ApplyLanguage(c)
 	a.pending.Store(c)
 	a.current.Store(c)
 	pPostMessage.Call(a.hwnd, msgApply, 0, 0)
+	settingsMu.Lock()
+	if settingsHwnd > 1 {
+		pPostMessage.Call(settingsHwnd, msgSetRefresh, 0, 0)
+	}
+	settingsMu.Unlock()
 	return nil
 }
 
@@ -156,7 +169,7 @@ func (a *App) Main(cfg *config.Config, loadErr error) error {
 	a.hwnd, _, _ = pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(u16(mainClass))),
 		uintptr(unsafe.Pointer(u16("SpaceHop"))), 0, 0, 0, 0, 0, 0, 0, inst, 0)
 	if a.hwnd == 0 {
-		return errors.New("无法创建窗口")
+		return errors.New(i18n.T("无法创建窗口"))
 	}
 	r, _, _ := pRegisterWindowMsg.Call(uintptr(unsafe.Pointer(u16("TaskbarCreated"))))
 	a.msgTaskbarCreated = uint32(r)
@@ -176,9 +189,12 @@ func (a *App) Main(cfg *config.Config, loadErr error) error {
 		return err
 	}
 	if loadErr != nil {
-		a.Notify(loadErr.Error() + "。已暂时使用默认配置，原文件没有改动。")
+		a.Notify(loadErr.Error() + i18n.T("。已暂时使用默认配置，原文件没有改动。"))
 	}
 	go a.watchConfig()
+	if a.ShowOnStart {
+		a.ShowSettings()
+	}
 
 	var m msg
 	for {
@@ -223,6 +239,15 @@ func kbProc(nCode, wParam, lParam uintptr) uintptr {
 		k := (*kbdllHook)(ptr(lParam))
 		if k.Extra != injectMagic {
 			down := wParam == wmKeyDown || wParam == wmSysKeyDown
+			if h := a.recHwnd.Load(); h != 0 {
+				now := uint32(time.Now().UnixMilli())
+				if now-a.recTick.Load() < 20000 {
+					a.recTick.Store(now)
+					pPostMessage.Call(h, msgSetRecKey, uintptr(k.VK), b2u(down))
+					return 1
+				}
+				a.recHwnd.Store(0)
+			}
 			if a.hookNs != nil {
 				start := time.Now()
 				eat := a.eng.OnKey(k.VK, down, k.Time)
@@ -393,14 +418,17 @@ func (a *App) command(args []string) {
 				return
 			}
 		}
-		a.Notify("没有叫 “" + args[1] + "” 的快捷键")
+		a.Notify(i18n.T("没有叫 “") + args[1] + i18n.T("” 的快捷键"))
 	}
 }
 
-func (a *App) openSettings() {
-	if a.OpenSettings != nil {
-		go a.OpenSettings()
+func (a *App) openSettings() { a.ShowSettings() }
+
+func b2u(b bool) uintptr {
+	if b {
+		return 1
 	}
+	return 0
 }
 
 // ---- engine.Effects ----
@@ -579,12 +607,12 @@ func (a *App) reload(report bool) {
 	}
 	c, err := config.Parse(data)
 	if err != nil {
-		a.Notify("配置文件被改动了，但内容有问题，仍在使用原来的配置：" + err.Error())
+		a.Notify(i18n.T("配置文件被改动了，但内容有问题，仍在使用原来的配置：") + err.Error())
 		return
 	}
 	_ = a.Apply(c)
 	if report {
-		a.Notify("已重新载入配置文件")
+		a.Notify(i18n.T("已重新载入配置文件"))
 	}
 }
 

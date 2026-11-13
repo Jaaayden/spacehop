@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"spacehop/internal/i18n"
 )
 
 // Virtual-key codes used across the app. Key names are what the config file
@@ -176,11 +178,11 @@ func ParseChord(s string) (mods []uint32, key uint32, err error) {
 		p = strings.TrimSpace(p)
 		v, ok := VK(p)
 		if !ok {
-			return nil, 0, fmt.Errorf("未知按键 %q", p)
+			return nil, 0, fmt.Errorf(i18n.T("未知按键 %q"), p)
 		}
 		if i < len(parts)-1 {
 			if !IsModifier(v) {
-				return nil, 0, fmt.Errorf("%q 不是修饰键", p)
+				return nil, 0, fmt.Errorf(i18n.T("%q 不是修饰键"), p)
 			}
 			mods = append(mods, v)
 		} else {

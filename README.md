@@ -2,14 +2,17 @@
 <h1 align="center">SpaceHop</h1>
 <p align="center">按住空格，再按一个键，事情就办了。给 Windows 的按键启动器。</p>
 
-<p align="center"><img src="assets/hint.png" width="520" alt="按住空格时出现的提示窗"></p>
+<p align="center"><img src="assets/hint.png" width="300" alt="按住空格时出现的提示窗"></p>
 
 `空格 › N` 打开记事本，`空格 › F › D` 打开下载文件夹，`空格 › W › H` 把窗口放到左半屏。
 轻点空格照常打字，按住才是快捷键，两者自动区分。
 
-- 一个 exe，约 8 MB，不用安装，不需要管理员权限
+- 一个 exe，约 4 MB，不用安装，不需要管理员权限，不依赖任何运行时
+- 界面由程序自己绘制，不含网页技术；中文 / English，深色 / 浅色
 - 不联网，不记录输入内容
 - 配置是一份可以直接读写的 JSON
+
+<p align="center"><img src="assets/settings.png" width="760" alt="设置窗口"></p>
 
 ## 安装
 
@@ -117,23 +120,35 @@ SpaceHop.exe --quit            退出
 - 输入法只能按语言切换。同一种语言下装了多个输入法时，Windows 不提供直接指定其中一个的方法。
 - 提示窗里的搜索按键盘字母匹配名称、按键和目标路径，不走输入法，所以中文名称要用路径或按键来搜。
 - 暂时没有应用内更新，新版本需要手动替换 exe。
+- 设置窗口是自绘的，目前只能用鼠标操作（输入框和按键录制除外），不支持屏幕阅读器。
 
 ## 从源码构建
 
-需要 Go 1.22 或更新，任何系统都可以构建：
+需要 Go 1.22 或更新，任何系统都可以构建，不需要其他工具：
 
 ```
 ./build.sh
 ```
 
-产物在 `dist/`。图标、版本信息和清单由仓库里的工具生成，不依赖其他工具。版本号只在 `VERSION` 文件里维护。
+产物在 `dist/`。版本号只在 `VERSION` 文件里维护。
+
+代码分三层，前两层不依赖 Windows，在任何系统上都能测试：
+
+| 目录 | 内容 |
+| --- | --- |
+| `internal/engine` | 按键判定：轻点还是按住、序列、搜索 |
+| `internal/ui`、`internal/raster` | 设置窗口的全部界面逻辑和绘制 |
+| `internal/win` | 键盘钩子、窗口、托盘和各类动作 |
 
 ```
-go test ./...                          按键判定等逻辑的测试
-dist\SpaceHop-amd64.exe --selftest out  在 Windows 上做一次真实运行的自检
+go test ./...                              逻辑、界面和绘制的测试
+dist\SpaceHop-amd64.exe --selftest out     在 Windows 上真实运行的自检
+dist\SpaceHop-amd64.exe --selftest out ui  只检查设置窗口，不发送任何按键
 ```
 
-CI 在每次提交时构建两种架构，并在 Windows 上运行自检：真实地按键、检查哪些按键被放行、截取提示窗、对记事本执行各类动作。
+自检会真实地按键并检查哪些按键被放行，截取提示窗和设置窗口的每一页，对记事本执行各类动作，并测量键盘钩子和重绘的耗时。CI 在每次提交时构建两种架构并在 Windows 上运行它。
+
+在 Mac 上开发时，`tools/vm.sh` 通过 Parallels 在虚拟机里运行同一套自检，并把报告和截图带回 `dist/vm/`。
 
 ## 致谢
 

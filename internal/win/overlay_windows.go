@@ -9,6 +9,7 @@ import (
 
 	"spacehop/internal/config"
 	"spacehop/internal/engine"
+	"spacehop/internal/i18n"
 	"spacehop/internal/raster"
 )
 
@@ -23,18 +24,18 @@ const (
 	dtEllipsis = 0x8000
 
 	maxCols    = 4
-	searchRows = 8
+	searchRows = 10
 	dimAfter   = 20 // runs after which a shortcut is shown less prominently
 )
 
 // Layout metrics in pixels at 100% scaling.
 const (
-	mShadow = 26
-	mPad    = 12
-	mHead   = 34
-	mFoot   = 26
-	mCapH   = 24
-	mRadius = 14
+	mShadow = 22
+	mPad    = 9
+	mHead   = 28
+	mFoot   = 21
+	mCapH   = 19
+	mRadius = 11
 )
 
 type palette struct {
@@ -111,11 +112,11 @@ func (o *overlay) create(inst uintptr) error {
 	o.hwnd, _, _ = pCreateWindowEx.Call(ex, uintptr(unsafe.Pointer(u16(overlayClass))), 0,
 		0x80000000 /* WS_POPUP */, 0, 0, 10, 10, 0, 0, inst, 0)
 	if o.hwnd == 0 {
-		return errors.New("无法创建提示窗")
+		return errors.New(i18n.T("无法创建提示窗"))
 	}
 	o.memDC, _, _ = pCreateCompatibleDC.Call(0)
 	if o.memDC == 0 {
-		return errors.New("无法创建提示窗画布")
+		return errors.New(i18n.T("无法创建提示窗画布"))
 	}
 	return nil
 }
@@ -175,11 +176,11 @@ func (o *overlay) fonts(dpi uint32) {
 		f, _, _ := pCreateFont.Call(uintptr(h), 0, 0, 0, weight, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(u16(face))))
 		return f
 	}
-	o.fText = mk("Microsoft YaHei UI", 14, 400)
-	o.fKey = mk("Segoe UI", 13, 600)
-	o.fSmall = mk("Microsoft YaHei UI", 12, 400)
-	o.fSearch = mk("Microsoft YaHei UI", 16, 400)
-	o.fIcon = mk("Segoe MDL2 Assets", 13, 400)
+	o.fText = mk("Microsoft YaHei UI", 13, 400)
+	o.fKey = mk("Segoe UI", 12, 600)
+	o.fSmall = mk("Microsoft YaHei UI", 11, 400)
+	o.fSearch = mk("Microsoft YaHei UI", 14, 400)
+	o.fIcon = mk("Segoe MDL2 Assets", 12, 400)
 	o.fontDPI = dpi
 }
 
@@ -220,8 +221,8 @@ func keyLabel(k string) string {
 
 // capWidth returns the width of a key cap, in real pixels.
 func (o *overlay) capWidth(key string) int32 {
-	w := o.textWidth(o.fKey, keyLabel(key)) + o.px(14)
-	if min := o.px(mCapH + 2); w < min {
+	w := o.textWidth(o.fKey, keyLabel(key)) + o.px(11)
+	if min := o.px(mCapH + 1); w < min {
 		w = min
 	}
 	return w
@@ -231,9 +232,9 @@ func (o *overlay) capWidth(key string) int32 {
 func (o *overlay) cap(p *palette, key string, x, y int32, accent bool) int32 {
 	w, h := o.capWidth(key), o.px(mCapH)
 	fx0, fy0, fx1, fy1 := float64(x), float64(y), float64(x+w), float64(y+h)
-	r := o.fx(6.5)
+	r := o.fx(5)
 	// A slightly darker lower edge gives the cap some depth.
-	o.canvas.Fill(fx0, fy0+o.fx(1.5), fx1, fy1+o.fx(1.5), r, p.capEdge)
+	o.canvas.Fill(fx0, fy0+o.fx(1), fx1, fy1+o.fx(1), r, p.capEdge)
 	o.canvas.Fill(fx0, fy0, fx1, fy1, r, p.cap)
 	o.canvas.Stroke(fx0, fy0, fx1, fy1, r, o.fx(1), p.capEdge)
 	color := p.capText
@@ -276,9 +277,9 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 		pal = &lightPal
 	}
 	classic := hc.Layout == "classic" && !v.Search
-	rowH, maxRows := 34, 8
+	rowH, maxRows := 25, 12
 	if classic {
-		rowH, maxRows = 28, 10
+		rowH, maxRows = 22, 14
 	}
 
 	// ---- measure ----
@@ -306,7 +307,7 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 	}
 	rows, cols, colW := n, 1, hc.Width
 	if v.Search {
-		colW = 460
+		colW = 400
 	} else if n > maxRows {
 		cols = (n + maxRows - 1) / maxRows
 		rows = (n + cols - 1) / cols
@@ -316,7 +317,7 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 		foot = 0
 	}
 	inW := o.px(mPad*2 + cols*colW)
-	inH := o.px(mPad + mHead + rows*rowH + foot + mPad/2)
+	inH := o.px(mPad + mHead + rows*rowH + foot + 3)
 	workW, workH := mi.Work.Right-mi.Work.Left, mi.Work.Bottom-mi.Work.Top
 	sh := o.px(mShadow)
 	if inW > workW {
@@ -332,20 +333,20 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 	c.Clear()
 	x0, y0, x1, y1 := float64(sh), float64(sh), float64(sh+inW), float64(sh+inH)
 	rad := o.fx(mRadius)
-	c.Shadow(x0, y0+o.fx(8), x1, y1+o.fx(8), rad, float64(sh)*0.9, raster.RGB(0).Alpha(0.30))
+	c.Shadow(x0, y0+o.fx(6), x1, y1+o.fx(6), rad, float64(sh)*0.9, raster.RGB(0).Alpha(0.28))
 	c.Fill(x0, y0, x1, y1, rad, pal.bg)
 	c.Stroke(x0, y0, x1, y1, rad, o.fx(1), pal.border)
 
 	left, top := sh+o.px(mPad), sh+o.px(mPad)
 	right := sh + inW - o.px(mPad)
-	headBottom := top + o.px(mHead-8)
+	headBottom := top + o.px(mHead-7)
 	if v.Search {
 		// The search line: a magnifier, the query and a caret.
 		o.text("", rect{left, top, left + o.px(24), headBottom}, o.fIcon, pal.dim, dtCenter)
 		q := v.Query
 		tx := left + o.px(30)
 		if q == "" {
-			o.text("搜索快捷键…", rect{tx, top, right, headBottom}, o.fSearch, pal.dim, 0)
+			o.text(i18n.T("搜索快捷键…"), rect{tx, top, right, headBottom}, o.fSearch, pal.dim, 0)
 		} else {
 			o.text(q, rect{tx, top, right, headBottom}, o.fSearch, pal.text, 0)
 		}
@@ -361,7 +362,7 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 			x += o.cap(pal, k, x, top, i == len(v.Path)-1)
 		}
 		if v.SearchKey != "" && classic {
-			o.text(v.SearchKey+" 搜索", rect{x + o.px(8), top, right, top + o.px(mCapH)}, o.fSmall, pal.dim, dtRight)
+			o.text(v.SearchKey+i18n.T(" 搜索"), rect{x + o.px(8), top, right, top + o.px(mCapH)}, o.fSmall, pal.dim, dtRight)
 		}
 	}
 	// Hairline under the header.
@@ -374,9 +375,9 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 	capY := func(y int32) int32 { return y + (o.px(rowH)-o.px(mCapH))/2 }
 	switch {
 	case len(items) == 0 && v.Search:
-		o.text("没有匹配的快捷键", rect{left + o.px(6), gridTop, right, gridTop + o.px(rowH)}, o.fText, pal.dim, 0)
+		o.text(i18n.T("没有匹配的快捷键"), rect{left + o.px(6), gridTop, right, gridTop + o.px(rowH)}, o.fText, pal.dim, 0)
 	case len(items) == 0:
-		o.text("这里还没有快捷键", rect{left + o.px(6), gridTop, right, gridTop + o.px(rowH)}, o.fText, pal.dim, 0)
+		o.text(i18n.T("这里还没有快捷键"), rect{left + o.px(6), gridTop, right, gridTop + o.px(rowH)}, o.fText, pal.dim, 0)
 	}
 	for i, it := range items {
 		x, y := cell(i)
@@ -397,7 +398,7 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 			o.text(it.Label, rect{x + o.px(32), y, kx - o.px(8), y + o.px(rowH)}, o.fText, pal.text, 0)
 			continue
 		}
-		tx := x + o.px(2) + o.cap(pal, it.Key, x+o.px(2), capY(y), false) + o.px(10)
+		tx := x + o.px(1) + o.cap(pal, it.Key, x+o.px(1), capY(y), false) + o.px(8)
 		color := pal.text
 		if hc.Dim && it.ID != "" && uses(it.ID) >= dimAfter {
 			color = pal.dim
@@ -419,25 +420,25 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 			continue
 		}
 		if g := glyphs[it.Type]; g != "" {
-			o.text(g, rect{tx - o.px(2), y, tx + o.px(18), y + o.px(rowH)}, o.fIcon, pal.dim, dtCenter)
-			tx += o.px(24)
+			o.text(g, rect{tx - o.px(2), y, tx + o.px(15), y + o.px(rowH)}, o.fIcon, pal.dim, dtCenter)
+			tx += o.px(20)
 		}
 		o.text(it.Label, rect{tx, y, cellRight, y + o.px(rowH)}, o.fText, color, 0)
 	}
 	if more > 0 {
 		x, y := cell(len(items))
-		o.text("还有 "+strconv.Itoa(more)+" 项", rect{x + o.px(8), y, x + o.px(colW), y + o.px(rowH)}, o.fText, pal.dim, 0)
+		o.text(i18n.T("还有 ")+strconv.Itoa(more)+i18n.T(" 项"), rect{x + o.px(8), y, x + o.px(colW), y + o.px(rowH)}, o.fText, pal.dim, 0)
 	}
 	if foot > 0 {
-		help := "Esc 取消"
+		help := i18n.T("Esc 取消")
 		switch {
 		case v.Search:
-			help = "方向键 选择    Enter 运行    Esc 关闭"
+			help = i18n.T("方向键 选择    Enter 运行    Esc 关闭")
 		case len(v.Path) > 1:
-			help = "Backspace 返回上一级    Esc 取消"
+			help = i18n.T("Backspace 返回上一级    Esc 取消")
 		}
 		if v.SearchKey != "" {
-			help += "    " + v.SearchKey + " 搜索"
+			help += "    " + v.SearchKey + i18n.T(" 搜索")
 		}
 		fy := sh + inH - o.px(foot+2)
 		o.text(help, rect{left + o.px(4), fy, right, fy + o.px(foot-4)}, o.fSmall, pal.dim, 0)

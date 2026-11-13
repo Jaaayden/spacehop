@@ -12,6 +12,7 @@ import (
 
 	"spacehop/internal/config"
 	"spacehop/internal/engine"
+	"spacehop/internal/i18n"
 )
 
 // ---- clipboard ----
@@ -59,18 +60,18 @@ func writeClipboard(text string) error {
 	u := w16(text)
 	h, _, _ := pGlobalAlloc.Call(0x2, uintptr(len(u)*2)) // GMEM_MOVEABLE
 	if h == 0 {
-		return actionError("内存不足")
+		return actionError(i18n.T("内存不足"))
 	}
 	p, _, _ := pGlobalLock.Call(h)
 	copy(unsafe.Slice((*uint16)(ptr(p)), len(u)), u)
 	pGlobalUnlock.Call(h)
 	if !openClipboard() {
-		return actionError("剪贴板正被其他程序占用")
+		return actionError(i18n.T("剪贴板正被其他程序占用"))
 	}
 	defer pCloseClipboard.Call()
 	pEmptyClipboard.Call()
 	if r, _, _ := pSetClipboardData.Call(cfUnicode, h); r == 0 {
-		return actionError("无法写入剪贴板")
+		return actionError(i18n.T("无法写入剪贴板"))
 	}
 	return nil
 }
@@ -147,7 +148,7 @@ func menuCommand(path string) error {
 	fg, _, _ := pGetForegroundWindow.Call()
 	menu, _, _ := pGetMenu.Call(fg)
 	if fg == 0 || menu == 0 {
-		return actionError("当前窗口没有标准菜单栏，可以改用“模拟按键”")
+		return actionError(i18n.T("当前窗口没有标准菜单栏，可以改用“模拟按键”"))
 	}
 	var res uintptr
 	send := func(m, w, l uintptr) {
@@ -168,23 +169,23 @@ func menuCommand(path string) error {
 			}
 		}
 		if found < 0 {
-			return actionError(fmt.Sprintf("找不到菜单项 “%s”（第 %d 级）", strings.TrimSpace(part), depth+1))
+			return actionError(fmt.Sprintf(i18n.T("找不到菜单项 “%s”（第 %d 级）"), strings.TrimSpace(part), depth+1))
 		}
 		if depth < len(parts)-1 {
 			sub, _, _ := pGetSubMenu.Call(menu, uintptr(found))
 			if sub == 0 {
-				return actionError("“" + strings.TrimSpace(part) + "” 下面没有子菜单")
+				return actionError("“" + strings.TrimSpace(part) + i18n.T("” 下面没有子菜单"))
 			}
 			send(0x0117, sub, uintptr(found)) // WM_INITMENUPOPUP
 			menu = sub
 			continue
 		}
 		if st, _, _ := pGetMenuState.Call(menu, uintptr(found), 0x400); st&0x3 != 0 { // MF_GRAYED | MF_DISABLED
-			return actionError("菜单项 “" + strings.TrimSpace(part) + "” 当前不可用")
+			return actionError(i18n.T("菜单项 “") + strings.TrimSpace(part) + i18n.T("” 当前不可用"))
 		}
 		id, _, _ := pGetMenuItemID.Call(menu, uintptr(found))
 		if int32(id) == -1 {
-			return actionError("“" + strings.TrimSpace(part) + "” 是一个子菜单，请写到具体的菜单项")
+			return actionError("“" + strings.TrimSpace(part) + i18n.T("” 是一个子菜单，请写到具体的菜单项"))
 		}
 		pPostMessage.Call(fg, wmCommand, id&0xFFFF, 0)
 	}
@@ -264,7 +265,7 @@ func windowAction(name string, custom []int) error {
 	}
 	h := targetWindow()
 	if h == 0 {
-		return actionError("当前没有可以操作的窗口")
+		return actionError(i18n.T("当前没有可以操作的窗口"))
 	}
 	mon, _, _ := pMonitorFromWindow.Call(h, 2)
 	mi, _ := monitorOf(mon)
@@ -315,14 +316,14 @@ func windowAction(name string, custom []int) error {
 		}
 	case "custom":
 		if len(custom) != 4 {
-			return actionError("自定义位置不完整")
+			return actionError(i18n.T("自定义位置不完整"))
 		}
 		c := [4]int32{int32(custom[0]), int32(custom[1]), int32(custom[2]), int32(custom[3])}
 		place(h, wa.Left+ww*c[0]/100, wa.Top+wh*c[1]/100, ww*c[2]/100, wh*c[3]/100)
 	default:
 		f, ok := layouts[name]
 		if !ok {
-			return actionError("未知的窗口动作")
+			return actionError(i18n.T("未知的窗口动作"))
 		}
 		x0, y0 := wa.Left+ww*f[0]/6, wa.Top+wh*f[1]/6
 		place(h, x0, y0, wa.Left+ww*(f[0]+f[2])/6-x0, wa.Top+wh*(f[1]+f[3])/6-y0)
@@ -367,7 +368,7 @@ func switchLayout(id string) error {
 	}
 	v, err := strconv.ParseUint(id, 16, 32)
 	if err != nil {
-		return actionError("输入法编号不对：" + id)
+		return actionError(i18n.T("输入法编号不对：") + id)
 	}
 	pPostMessage.Call(fg, wmInputLangChangeRequest, 0, uintptr(int32(uint32(v)))) // handles are sign-extended
 	return nil

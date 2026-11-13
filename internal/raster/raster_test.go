@@ -48,3 +48,22 @@ func TestDraw(t *testing.T) {
 		f.Close()
 	}
 }
+
+// Stroke skips the hollow middle of a rectangle; at every sub-pixel
+// position it must still terminate.
+func TestStrokeTerminates(t *testing.T) {
+	c := &Canvas{W: 300, H: 80, Pix: make([]uint32, 300*80)}
+	done := make(chan bool)
+	go func() {
+		for i := 0; i < 400; i++ {
+			f := float64(i) * 0.13
+			c.Stroke(3+f, 4+f/7, 250+f/3, 60+f/11, 9+f/40, 1+float64(i%3), RGB(0xFFFFFF))
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stroke did not return")
+	}
+}

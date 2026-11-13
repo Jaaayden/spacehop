@@ -13,6 +13,7 @@ import (
 
 	"spacehop/internal/config"
 	"spacehop/internal/engine"
+	"spacehop/internal/i18n"
 )
 
 var envRef = regexp.MustCompile(`%([^%]+)%`)
@@ -34,7 +35,7 @@ func expand(p string) string {
 // RunAction performs an action. It is called off the UI thread.
 func (a *App) RunAction(act config.Action) error {
 	if act.Incomplete() {
-		return actionError("这个动作还没有填完整")
+		return actionError(i18n.T("这个动作还没有填完整"))
 	}
 	switch act.Type {
 	case config.OpenApp:
@@ -87,11 +88,11 @@ func (a *App) RunAction(act config.Action) error {
 		case "toggle":
 			a.SetEnabled(!a.Config().Enabled)
 		default:
-			return actionError("未知的系统动作")
+			return actionError(i18n.T("未知的系统动作"))
 		}
 		return nil
 	}
-	return actionError("未知的动作类型")
+	return actionError(i18n.T("未知的动作类型"))
 }
 
 func quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, "") + `"` }
@@ -116,7 +117,7 @@ func runCommand(act config.Action) error {
 	cmd.SysProcAttr = attr
 	cmd.Dir = os.Getenv("USERPROFILE")
 	if err := cmd.Start(); err != nil {
-		return actionError("命令无法启动：" + err.Error())
+		return actionError(i18n.T("命令无法启动：") + err.Error())
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil

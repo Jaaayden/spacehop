@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -15,6 +16,7 @@ import (
 	"unsafe"
 
 	"spacehop/internal/config"
+	"spacehop/internal/ui"
 )
 
 // The self-test runs the real program on a real Windows desktop: it presses
@@ -136,6 +138,7 @@ func testConfig() *config.Config {
 	c := config.Default()
 	c.Timing.HintDelayMs = 250
 	c.Hint.Theme = "dark"
+	c.Language = "zh"
 	c.Leaders = []config.Leader{
 		{ID: "space", Mode: config.Hold, Key: "Space", KeepTap: true},
 		{ID: "f9", Mode: config.Hold, Key: "F9"},
@@ -170,7 +173,7 @@ func testConfig() *config.Config {
 
 // SelfTest runs the checks, writes report.txt and screenshots into out and
 // returns the process exit code.
-func SelfTest(out, version string) int {
+func SelfTest(out, version string, uiOnly bool) int {
 	_ = os.MkdirAll(out, 0o755)
 	dir, _ := os.MkdirTemp("", "spacehop-selftest")
 	os.Setenv("SPACEHOP_DIR", dir)
@@ -179,6 +182,7 @@ func SelfTest(out, version string) int {
 		_ = os.WriteFile(filepath.Join(out, "report.txt"), []byte("FAIL config: "+err.Error()+"\n"), 0o644)
 		return 1
 	}
+	ApplyLanguage(cfg)
 	a := &App{Version: version, hookNs: make([]int64, 0, 4096)}
 	t := &selfTest{a: a, out: out}
 	theTest = t
@@ -209,7 +213,11 @@ func SelfTest(out, version string) int {
 			}
 		}
 		wait(300)
-		t.run()
+		if uiOnly {
+			t.settings() // no keys are sent: safe while someone uses the machine
+		} else {
+			t.run()
+		}
 		a.onUI(a.Quit)
 	}()
 	go func() {
@@ -464,7 +472,114 @@ func (t *selfTest) run() {
 		t.check("hook latency", max < 20*time.Millisecond, "%d key events, median %v, max %v", len(ns), med, max)
 	}
 
+	t.settings()
 	t.actions()
+}
+
+// settings opens the real settings window and photographs every page in
+// both languages and both colour schemes.
+func (t *selfTest) settings() {
+	a := t.a
+	a.ShowSettings()
+	open := false
+	for i := 0; i < 50 && !open; i++ {
+		wait(100)
+		settingsMu.Lock()
+		open = settingsHwnd > 1
+		settingsMu.Unlock()
+	}
+	if !t.check("settings window opens", open, "window created: %v", open) {
+		return
+	}
+	// A fixed size and place, so the pictures are comparable between runs.
+	a.settingsDo(func(_ *ui.App, _ *ui.Ctx) {
+		s := theSettings
+		pSetWindowPos.Call(s.hwnd, 0, 40, 40, uintptr(1080*s.scale), uintptr(760*s.scale), 0x4)
+	})
+	wait(600)
+	pages := 6
+	shots := 0
+	for _, v := range []struct{ lang, theme string }{{"zh", "light"}, {"en", "dark"}} {
+		t.apply(func(c *config.Config) { c.Language, c.Theme = v.lang, v.theme })
+		wait(300)
+		for p := 0; p < pages; p++ {
+			page := p
+			if !a.settingsDo(func(app *ui.App, _ *ui.Ctx) { app.Goto(page) }) {
+				t.logf("FAIL", "settings page", "window went away at page %d", p)
+				return
+			}
+			wait(450)
+			t.shot("settings-" + v.lang + "-" + strconv.Itoa(p))
+			shots++
+		}
+	}
+	// The editor, by a real click on a key of the keyboard map.
+	a.settingsDo(func(app *ui.App, _ *ui.Ctx) { app.Goto(0) })
+	wait(400)
+	pageCh := make(chan time.Duration)
+	a.settingsDo(func(app *ui.App, c *ui.Ctx) {
+		t0 := time.Now()
+		for i := 0; i < 20; i++ {
+			theSettings.frame(false)
+		}
+		d := time.Since(t0) / 20
+		go func() { pageCh <- d }()
+	})
+	pagePer := <-pageCh
+	t.check("settings page redraw", pagePer < 33*time.Millisecond, "%v per full redraw of the shortcuts page", pagePer)
+	a.settingsDo(func(app *ui.App, c *ui.Ctx) { app.TestOpenEditor(c) })
+	wait(700)
+	t.shot("settings-editor")
+	// A text field: give it the keyboard and type for real.
+	a.settingsDo(func(app *ui.App, c *ui.Ctx) { c.Focus("ed/args") })
+	wait(500)
+	settingsMu.Lock()
+	sh := settingsHwnd
+	settingsMu.Unlock()
+	if fg, _, _ := pGetForegroundWindow.Call(); fg != sh {
+		activate(sh)
+		wait(300)
+	}
+	if fg, _, _ := pGetForegroundWindow.Call(); fg != sh {
+		t.logf("SKIP", "typing in a field", "the settings window is not in front")
+	} else {
+		sendText("Hop 输入")
+		wait(400)
+		nameCh := make(chan string, 1)
+		a.settingsDo(func(app *ui.App, c *ui.Ctx) { nameCh <- app.TestDraftArgs() + "|" + c.Focused() })
+		got := <-nameCh
+		t.check("typing in a field", got == "Hop 输入|ed/args", "%q", got)
+		t.shot("settings-typing")
+		a.settingsDo(func(app *ui.App, c *ui.Ctx) { c.Blur() })
+		wait(200)
+	}
+	start := time.Now()
+	const frames = 30
+	doneCh := make(chan struct{})
+	var textPer time.Duration
+	var ops, px int
+	a.settingsDo(func(app *ui.App, c *ui.Ctx) {
+		s := theSettings
+		start = time.Now()
+		s.textNs, s.textOps = 0, 0
+		for i := 0; i < frames; i++ {
+			s.frame(false)
+		}
+		textPer, ops, px = time.Duration(s.textNs/frames), s.textOps/frames, s.canvas.W*s.canvas.H
+		close(doneCh)
+	})
+	<-doneCh
+	per := time.Since(start) / frames
+	t.check("settings frame time", per < 33*time.Millisecond, "%v per full redraw with the editor open (%v of it for %d pieces of text), %d pixels, %d screenshots", per, textPer, ops, px, shots)
+	settingsMu.Lock()
+	h := settingsHwnd
+	settingsMu.Unlock()
+	pPostMessage.Call(h, wmClose, 0, 0)
+	wait(500)
+	settingsMu.Lock()
+	closed := settingsHwnd == 0
+	settingsMu.Unlock()
+	t.check("settings window closes", closed, "thread ended: %v", closed)
 }
 
 // notepadText reads what is in Notepad's edit box.
@@ -582,6 +697,12 @@ func (t *selfTest) actions() {
 	wait(400)
 	min, _, _ := pIsIconic.Call(np)
 	t.check("hide when in front", min != 0, "minimised %v", min != 0)
+}
+
+// Screenshot saves a picture of the primary screen (development aid).
+func Screenshot(path string) {
+	pSetDpiAwarenessCtx.Call(^uintptr(3))
+	(&selfTest{out: filepath.Dir(path)}).shot(strings.TrimSuffix(filepath.Base(path), ".png"))
 }
 
 // shot saves a screenshot of the primary screen.

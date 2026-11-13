@@ -7,6 +7,8 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"spacehop/internal/i18n"
 )
 
 var (
@@ -322,13 +324,13 @@ func (e actionError) Error() string { return string(e) }
 func shellError(code uintptr, file string) error {
 	switch code {
 	case 2, 3:
-		return actionError("找不到：" + file)
+		return actionError(i18n.T("找不到：") + file)
 	case 5:
-		return actionError("没有权限打开：" + file)
+		return actionError(i18n.T("没有权限打开：") + file)
 	case 31:
-		return actionError("没有程序可以打开：" + file)
+		return actionError(i18n.T("没有程序可以打开：") + file)
 	}
-	return actionError("无法打开：" + file)
+	return actionError(i18n.T("无法打开：") + file)
 }
 
 // Open starts a program, document or URL the way Explorer would.

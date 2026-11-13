@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"spacehop/internal/i18n"
 )
 
 const (
@@ -30,6 +32,10 @@ const (
 type Config struct {
 	Version int  `json:"version"`
 	Enabled bool `json:"enabled"`
+	// Language of the interface: "auto" (follow Windows), "zh" or "en".
+	Language string `json:"language"`
+	// Theme of the settings window: "auto", "dark" or "light".
+	Theme string `json:"theme"`
 	// Leaders are the keys that start a shortcut. The first one is the
 	// default for new bindings.
 	Leaders             []Leader  `json:"leaders"`
@@ -165,28 +171,32 @@ type Action struct {
 	System string `json:"system,omitempty"` // see SystemActions
 }
 
+// LabelOf returns the translated label of an entry of WindowLayouts or
+// SystemActions.
+func LabelOf(table [][2]string, name string) string { s, _ := labelOf(table, name); return s }
+
 // WindowLayouts and SystemActions list the accepted names with their labels.
 var (
 	WindowLayouts = [][2]string{
-		{"left", "左半屏"}, {"right", "右半屏"}, {"top", "上半屏"}, {"bottom", "下半屏"},
-		{"left-third", "左三分之一"}, {"center-third", "中间三分之一"}, {"right-third", "右三分之一"},
-		{"left-two-thirds", "左侧三分之二"}, {"right-two-thirds", "右侧三分之二"},
-		{"top-left", "左上四分之一"}, {"top-right", "右上四分之一"}, {"bottom-left", "左下四分之一"}, {"bottom-right", "右下四分之一"},
-		{"maximize", "最大化"}, {"center", "居中"}, {"restore", "还原"}, {"minimize", "最小化"},
-		{"next-monitor", "移到下一个显示器"}, {"close", "关闭窗口"},
-		{"switch-previous", "切换到上一个窗口"}, {"switch-same-app", "同一程序的下一个窗口"},
-		{"custom", "自定义位置和大小"},
+		{"left", i18n.N("左半屏")}, {"right", i18n.N("右半屏")}, {"top", i18n.N("上半屏")}, {"bottom", i18n.N("下半屏")},
+		{"left-third", i18n.N("左三分之一")}, {"center-third", i18n.N("中间三分之一")}, {"right-third", i18n.N("右三分之一")},
+		{"left-two-thirds", i18n.N("左侧三分之二")}, {"right-two-thirds", i18n.N("右侧三分之二")},
+		{"top-left", i18n.N("左上四分之一")}, {"top-right", i18n.N("右上四分之一")}, {"bottom-left", i18n.N("左下四分之一")}, {"bottom-right", i18n.N("右下四分之一")},
+		{"maximize", i18n.N("最大化")}, {"center", i18n.N("居中")}, {"restore", i18n.N("还原")}, {"minimize", i18n.N("最小化")},
+		{"next-monitor", i18n.N("移到下一个显示器")}, {"close", i18n.N("关闭窗口")},
+		{"switch-previous", i18n.N("切换到上一个窗口")}, {"switch-same-app", i18n.N("同一程序的下一个窗口")},
+		{"custom", i18n.N("自定义位置和大小")},
 	}
 	SystemActions = [][2]string{
-		{"lock", "锁定电脑"}, {"sleep", "睡眠"}, {"display-off", "关闭显示器"}, {"show-desktop", "显示桌面"},
-		{"settings", "打开 SpaceHop 设置"}, {"toggle", "暂停 / 恢复 SpaceHop"},
+		{"lock", i18n.N("锁定电脑")}, {"sleep", i18n.N("睡眠")}, {"display-off", i18n.N("关闭显示器")}, {"show-desktop", i18n.N("显示桌面")},
+		{"settings", i18n.N("打开 SpaceHop 设置")}, {"toggle", i18n.N("暂停 / 恢复 SpaceHop")},
 	}
 )
 
 func labelOf(table [][2]string, name string) (string, bool) {
 	for _, r := range table {
 		if r[0] == name {
-			return r[1], true
+			return i18n.T(r[1]), true
 		}
 	}
 	return "", false
@@ -206,16 +216,18 @@ func Default() *Config {
 	return &Config{
 		Version:             2,
 		Enabled:             true,
+		Language:            "auto",
+		Theme:               "auto",
 		Leaders:             []Leader{{ID: "space", Mode: Hold, Key: "Space", KeepTap: true}},
 		Timing:              Timing{ActivationMs: 50, TypingSuppressMs: 200, TapReplayMs: 400, HintDelayMs: 500, TapTimeoutMs: 3000, ModTapMs: 300},
-		Hint:                Hint{Show: true, Layout: "modern", Theme: "auto", X: 50, Y: 8, Width: 260, Monitor: "focus", SearchKey: "/", Dim: true},
+		Hint:                Hint{Show: true, Layout: "modern", Theme: "auto", X: 50, Y: 8, Width: 220, Monitor: "focus", SearchKey: "/", Dim: true},
 		DisableInFullscreen: true,
 		DisabledApps:        []string{},
 		Bindings: []Binding{
-			b("资源管理器", Action{Type: OpenApp, Path: "explorer.exe", Exe: "explorer.exe", IfRunning: "new"}, "E"),
-			b("记事本", Action{Type: OpenApp, Path: "notepad.exe", Exe: "notepad.exe"}, "N"),
-			b("下载", Action{Type: OpenFile, Path: `%USERPROFILE%\Downloads`}, "F", "D"),
-			b("个人文件夹", Action{Type: OpenFile, Path: `%USERPROFILE%`}, "F", "H"),
+			b(i18n.T("资源管理器"), Action{Type: OpenApp, Path: "explorer.exe", Exe: "explorer.exe", IfRunning: "new"}, "E"),
+			b(i18n.T("记事本"), Action{Type: OpenApp, Path: "notepad.exe", Exe: "notepad.exe"}, "N"),
+			b(i18n.T("下载"), Action{Type: OpenFile, Path: `%USERPROFILE%\Downloads`}, "F", "D"),
+			b(i18n.T("个人文件夹"), Action{Type: OpenFile, Path: `%USERPROFILE%`}, "F", "H"),
 			stay(b("", Action{Type: Window, Window: "left"}, "W", "H")),
 			stay(b("", Action{Type: Window, Window: "right"}, "W", "L")),
 			stay(b("", Action{Type: Window, Window: "maximize"}, "W", "K")),
@@ -266,19 +278,19 @@ func (l *Leader) normalize() error {
 	l.Mode = oneOf(l.Mode, Hold, Hold, Tap)
 	key, ok := CanonicalChord(l.Key)
 	if !ok {
-		return fmt.Errorf("引导键 %q 无法识别", l.Key)
+		return fmt.Errorf(i18n.T("引导键 %q 无法识别"), l.Key)
 	}
 	l.Key = key
 	mods, vk, _ := ParseChord(key)
 	if l.Mode == Hold {
 		if len(mods) > 0 || IsModifier(vk) {
-			return fmt.Errorf("按住型引导键 %s 必须是单个普通按键", key)
+			return fmt.Errorf(i18n.T("按住型引导键 %s 必须是单个普通按键"), key)
 		}
 		return nil
 	}
 	l.KeepTap = false
 	if (len(mods) == 0) != IsModifier(vk) {
-		return fmt.Errorf("轻按型引导键 %s 需要是组合键（如 Alt+S）或单个修饰键（如 RCtrl）", key)
+		return fmt.Errorf(i18n.T("轻按型引导键 %s 需要是组合键（如 Alt+S）或单个修饰键（如 RCtrl）"), key)
 	}
 	return nil
 }
@@ -287,6 +299,8 @@ func (l *Leader) normalize() error {
 // things the user has to correct.
 func (c *Config) Normalize() error {
 	c.Version = 2
+	c.Language = oneOf(c.Language, "auto", "auto", "zh", "en")
+	c.Theme = oneOf(c.Theme, "auto", "auto", "dark", "light")
 	if len(c.Leaders) == 0 && c.Legacy != nil {
 		c.Leaders = []Leader{{ID: "space", Mode: Hold, Key: c.Legacy.Key, KeepTap: c.Legacy.KeepTap}}
 	}
@@ -295,7 +309,7 @@ func (c *Config) Normalize() error {
 		c.Leaders = Default().Leaders
 	}
 	if len(c.Leaders) > MaxLeaders {
-		return fmt.Errorf("引导键最多 %d 个", MaxLeaders)
+		return fmt.Errorf(i18n.T("引导键最多 %d 个"), MaxLeaders)
 	}
 	ids, keys := map[string]bool{}, map[string]bool{}
 	for i := range c.Leaders {
@@ -307,7 +321,7 @@ func (c *Config) Normalize() error {
 			l.ID = NewID()
 		}
 		if keys[l.Key] {
-			return fmt.Errorf("引导键 %s 重复了", l.Key)
+			return fmt.Errorf(i18n.T("引导键 %s 重复了"), l.Key)
 		}
 		ids[l.ID], keys[l.Key] = true, true
 	}
@@ -331,22 +345,22 @@ func (c *Config) Normalize() error {
 	h.Theme = oneOf(h.Theme, "auto", "auto", "dark", "light")
 	h.Monitor = oneOf(h.Monitor, "focus", "focus", "pointer")
 	if h.Width == 0 {
-		h.Width, h.X, h.Y = 260, 50, 8
+		h.Width, h.X, h.Y = 220, 50, 8
 	}
-	h.Width = clamp(h.Width, 180, 480)
+	h.Width = clamp(h.Width, 160, 480)
 	h.X = clamp(h.X, 0, 100)
 	h.Y = clamp(h.Y, 0, 100)
 	if h.SearchKey != "" {
 		k, ok := CanonicalKey(h.SearchKey)
 		if v, _ := VK(k); !ok || IsModifier(v) || v == VKEsc || v == VKBack || v == VKEnter {
-			return fmt.Errorf("搜索键 %q 不能用", h.SearchKey)
+			return fmt.Errorf(i18n.T("搜索键 %q 不能用"), h.SearchKey)
 		}
 		h.SearchKey = k
 	}
 
 	c.DisabledApps = cleanApps(c.DisabledApps)
 	if len(c.Bindings) > MaxBindings {
-		return fmt.Errorf("快捷键数量超过上限 %d", MaxBindings)
+		return fmt.Errorf(i18n.T("快捷键数量超过上限 %d"), MaxBindings)
 	}
 	if c.Bindings == nil {
 		c.Bindings = []Binding{}
@@ -362,7 +376,7 @@ func (c *Config) Normalize() error {
 			b.Leader = ""
 		}
 		if err := c.normalizeBinding(b); err != nil {
-			return fmt.Errorf("第 %d 条快捷键：%w", i+1, err)
+			return fmt.Errorf(i18n.T("第 %d 条快捷键：%w"), i+1, err)
 		}
 	}
 	return nil
@@ -374,19 +388,19 @@ func (c *Config) normalizeBinding(b *Binding) error {
 		b.Keys = []string{}
 	}
 	if len(b.Keys) > MaxKeys {
-		return fmt.Errorf("触发键最多 %d 个", MaxKeys)
+		return fmt.Errorf(i18n.T("触发键最多 %d 个"), MaxKeys)
 	}
 	if len(b.Keys) == 0 && l.Mode != Tap {
-		return errors.New("需要至少一个触发键（只有轻按型引导键可以不带触发键）")
+		return errors.New(i18n.T("需要至少一个触发键（只有轻按型引导键可以不带触发键）"))
 	}
 	for j, key := range b.Keys {
 		ck, ok := CanonicalKey(key)
 		if !ok {
-			return fmt.Errorf("按键 %q 无法识别", key)
+			return fmt.Errorf(i18n.T("按键 %q 无法识别"), key)
 		}
 		v, _ := VK(ck)
 		if IsModifier(v) || v == VKEsc || (v == VKBack && j > 0) || (l.Mode == Hold && ck == l.Key) {
-			return fmt.Errorf("不能用 %s 作触发键", ck)
+			return fmt.Errorf(i18n.T("不能用 %s 作触发键"), ck)
 		}
 		b.Keys[j] = ck
 	}
@@ -402,21 +416,21 @@ func (c *Config) normalizeBinding(b *Binding) error {
 	case OpenApp:
 		a.IfRunning = oneOf(a.IfRunning, "", "hide", "previous", "new")
 		if len(a.Cycle) > MaxCycle {
-			return fmt.Errorf("轮换的程序最多 %d 个", MaxCycle)
+			return fmt.Errorf(i18n.T("轮换的程序最多 %d 个"), MaxCycle)
 		}
 	case OpenURL, OpenFile, RunCommand, ExecuteFile, InsertText, MenuCommand, Notify, InputMethod:
 	case Keystroke:
 		if a.Chord != "" {
 			ch, ok := CanonicalChord(a.Chord)
 			if !ok {
-				return fmt.Errorf("模拟按键 %q 无法识别", a.Chord)
+				return fmt.Errorf(i18n.T("模拟按键 %q 无法识别"), a.Chord)
 			}
 			a.Chord = ch
 		}
 	case Window:
 		if a.Window != "" {
 			if _, ok := labelOf(WindowLayouts, a.Window); !ok {
-				return fmt.Errorf("窗口动作 %q 无法识别", a.Window)
+				return fmt.Errorf(i18n.T("窗口动作 %q 无法识别"), a.Window)
 			}
 		}
 		if a.Window == "custom" {
@@ -431,11 +445,11 @@ func (c *Config) normalizeBinding(b *Binding) error {
 	case System:
 		if a.System != "" {
 			if _, ok := labelOf(SystemActions, a.System); !ok {
-				return fmt.Errorf("系统动作 %q 无法识别", a.System)
+				return fmt.Errorf(i18n.T("系统动作 %q 无法识别"), a.System)
 			}
 		}
 	default:
-		return fmt.Errorf("动作类型 %q 无法识别", a.Type)
+		return fmt.Errorf(i18n.T("动作类型 %q 无法识别"), a.Type)
 	}
 	return nil
 }
@@ -516,9 +530,9 @@ func (b *Binding) Label() string {
 		}
 	case InputMethod:
 		if a.Layout == "next" {
-			return "下一个输入法"
+			return i18n.T("下一个输入法")
 		}
-		return "切换输入法"
+		return i18n.T("切换输入法")
 	case Notify:
 		return a.Title
 	case System:
@@ -549,7 +563,7 @@ func Parse(data []byte) (*Config, error) {
 	c := Default()
 	c.Bindings, c.Leaders = nil, nil
 	if err := json.Unmarshal(data, c); err != nil {
-		return nil, fmt.Errorf("无法解析：%w", err)
+		return nil, fmt.Errorf(i18n.T("无法解析：%w"), err)
 	}
 	if err := c.Normalize(); err != nil {
 		return nil, err
@@ -570,7 +584,7 @@ func Load() (*Config, error) {
 	}
 	c, err := Parse(data)
 	if err != nil {
-		return Default(), fmt.Errorf("配置文件有问题：%w", err)
+		return Default(), fmt.Errorf(i18n.T("配置文件有问题：%w"), err)
 	}
 	return c, nil
 }
@@ -659,7 +673,7 @@ func Backups() []Backup {
 // ReadBackup loads one automatic backup by its file name.
 func ReadBackup(name string) (*Config, error) {
 	if name != filepath.Base(name) || !strings.HasPrefix(name, "config-") {
-		return nil, errors.New("备份名称不对")
+		return nil, errors.New(i18n.T("备份名称不对"))
 	}
 	data, err := os.ReadFile(filepath.Join(backupDir(), name))
 	if err != nil {

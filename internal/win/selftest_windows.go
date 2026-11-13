@@ -337,8 +337,17 @@ func (t *selfTest) run() {
 	press(sp, true)
 	wait(150)
 	early := t.hintVisible()
-	wait(500)
-	t.check("hint appears after delay", !early && t.hintVisible(), "early %v, later %v", early, t.hintVisible())
+	// The delay is 250 ms. The very first hint also loads fonts, so measure
+	// when it really shows instead of assuming.
+	shown := time.Duration(-1)
+	for start := time.Now(); time.Since(start) < 3*time.Second; wait(20) {
+		if t.hintVisible() {
+			shown = time.Since(start) + 150*time.Millisecond
+			break
+		}
+	}
+	t.check("hint appears after delay", !early && shown > 0 && shown < 1200*time.Millisecond, "hidden at 150 ms, visible %v after the key went down (delay set to 250 ms)", shown.Round(10*time.Millisecond))
+	wait(200)
 	t.shot("hint-dark")
 	tap('F')
 	wait(150)

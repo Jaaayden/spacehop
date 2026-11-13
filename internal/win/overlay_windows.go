@@ -84,6 +84,7 @@ type overlay struct {
 	x, y, w, h int32
 	step       int // animation frame; animFrames means settled
 
+	warming                             bool
 	fontDPI                             uint32
 	fText, fKey, fSmall, fIcon, fSearch uintptr
 	ops                                 []textOp
@@ -463,6 +464,10 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 		c.Opaque(int(r.Left), int(r.Top), int(r.Right), int(r.Bottom))
 	}
 
+	if o.warming {
+		return // drawn once out of sight, so the first real hint is not slow
+	}
+
 	// ---- place ----
 	o.w, o.h = w, h
 	o.x = mi.Work.Left + workW*int32(hc.X)/100 - w/2
@@ -487,6 +492,20 @@ func (o *overlay) show(v engine.HintView, cfg *config.Config, uses func(string) 
 		return
 	}
 	o.present()
+}
+
+// warm draws a hint without showing it. The first drawing loads the fonts
+// (including the fallback fonts for Chinese and the icon font), which takes
+// a noticeable moment; doing it shortly after start keeps that out of the
+// first time the user holds the leader key.
+func (o *overlay) warm(cfg *config.Config) {
+	v := engine.HintView{Path: []string{"Space", "F"}, SearchKey: "/"}
+	for t := range glyphs {
+		v.Items = append(v.Items, engine.HintItem{Key: "A", Label: "SpaceHop 提示窗", Type: t})
+	}
+	o.warming = true
+	o.show(v, cfg, func(string) int { return 0 })
+	o.warming = false
 }
 
 // present pushes the drawn buffer to the screen at the current animation

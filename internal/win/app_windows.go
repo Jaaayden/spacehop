@@ -32,6 +32,7 @@ const (
 	timerAnim   = 2
 	timerSeq    = 3
 	timerStats  = 4
+	timerWarm   = 5
 
 	maxLog = 300 // activity entries kept in memory
 )
@@ -192,6 +193,7 @@ func (a *App) Main(cfg *config.Config, loadErr error) error {
 		a.Notify(loadErr.Error() + i18n.T("。已暂时使用默认配置，原文件没有改动。"))
 	}
 	go a.watchConfig()
+	pSetTimer.Call(a.hwnd, timerWarm, 400, 0) // after start-up has settled
 	if a.ShowOnStart {
 		a.ShowSettings()
 	}
@@ -365,6 +367,11 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 		case timerStats:
 			pKillTimer.Call(hwnd, timerStats)
 			a.saveStats()
+		case timerWarm:
+			pKillTimer.Call(hwnd, timerWarm)
+			if !a.overlay.visible {
+				a.overlay.warm(a.Config())
+			}
 		}
 		return 0
 	case wmPowerBroadcast:

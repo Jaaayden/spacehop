@@ -99,6 +99,8 @@ type App struct {
 	logEntries []config.LogEntry
 	logSeq     int
 	numS       map[string]*string
+	numSeen    map[string]string        // text of each number field already acted on
+	leaderWas  map[string]config.Leader // a leader's key in the mode it is not in now
 	issues     map[string]issue
 	iconPx     int
 	iconPix    []uint8
@@ -109,7 +111,7 @@ type App struct {
 }
 
 func New(h Host) *App {
-	a := &App{H: h, sel: map[string]bool{}, shown: 200, numS: map[string]*string{}}
+	a := &App{H: h, sel: map[string]bool{}, shown: 200, numS: map[string]*string{}, numSeen: map[string]string{}, leaderWas: map[string]config.Leader{}}
 	a.reload()
 	return a
 }
@@ -552,6 +554,7 @@ func (a *App) recLeader() *config.Leader {
 func (a *App) recorder(c *Ctx, id string, r Rect, empty string, canClear bool, draw func(x, y float64) float64) (cleared bool) {
 	p := c.P
 	live := a.rec == id
+	clicked := c.Click(id, r) // before the Clear button, which lies on top
 	fill, line := raster.RGB(p.Raised), raster.RGB(p.Line2)
 	if live {
 		fill, line = raster.RGB(p.AccentSoft), raster.RGB(p.AccentText)
@@ -573,7 +576,7 @@ func (a *App) recorder(c *Ctx, id string, r Rect, empty string, canClear bool, d
 	} else if r.W-w-30 > hw {
 		c.Text(hint, FSmall, Rect{r.X, r.Y, r.W - 12, r.H}, p.Muted, Right)
 	}
-	if c.Click(id, r) {
+	if clicked {
 		if live {
 			a.stopRec()
 		} else {

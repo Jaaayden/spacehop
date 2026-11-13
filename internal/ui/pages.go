@@ -87,18 +87,21 @@ func (a *App) pageLeader(c *Ctx, view Rect) {
 		}
 		pick, sw := c.Seg(pre+"/mode", cx, cy, []string{T("按住"), T("轻按")}, cur)
 		if pick >= 0 {
-			if pick == 0 {
-				l.Mode = config.Hold
-				if strings.Contains(l.Key, "+") || isMod(l.Key) {
-					l.Key = "F12"
-				}
-			} else {
-				l.Mode, l.KeepTap = config.Tap, false
+			// Each mode keeps its own key: switching back and forth must
+			// not lose Space.
+			was, had := a.leaderWas[l.ID]
+			a.leaderWas[l.ID] = *l
+			switch {
+			case had && was.Mode != l.Mode:
+				l.Mode, l.Key, l.KeepTap = was.Mode, was.Key, was.KeepTap
+			case pick == 0:
+				l.Mode, l.Key = config.Hold, "F12"
+			default:
 				k := "S"
 				if len(l.Key) == 1 {
 					k = l.Key
 				}
-				l.Key = "Alt+" + k
+				l.Mode, l.KeepTap, l.Key = config.Tap, false, "Alt+"+k
 			}
 			a.save(true)
 			c.EndScroll()
@@ -535,29 +538,42 @@ func (a *App) pageGeneral(c *Ctx, view Rect) {
 		c.Text(T("按键时序"), FBold, Rect{ix, iy + 10, inner, 20}, p.Text, Left)
 		iy += 34 + c.Para(T("刚开始用建议保留默认值。前三项只对“按住 · 保留轻点”的引导键起作用。"), FText, ix, iy+34, inner, p.Muted) + 8
 		t := &a.cfg.Timing
-		for i, r := range []struct {
+		for i, r0 := range []struct {
 			key, title, desc string
-			v                *int
 		}{
-			{"activationMs", T("就绪等待"), T("按下引导键后，这段时间内按的键算作普通打字。觉得快捷键反应慢就调小，打字时误触就调大。"), &t.ActivationMs},
-			{"typingSuppressMs", T("打字后的保护时间"), T("刚打完字紧接着按引导键时，改用这个更长的等待。快速打字时空格偶尔被吞就调大。"), &t.TypingSuppressMs},
-			{"tapReplayMs", T("轻点仍输入本键的时限"), T("按住不超过这个时间并且没有触发快捷键，松开时照常输入这个键；超过则什么都不输入。"), &t.TapReplayMs},
-			{"tapTimeoutMs", T("轻按型引导键等待触发键"), T("轻按引导键后，这段时间内没有按触发键就自动退出。"), &t.TapTimeoutMs},
-			{"modTapMs", T("单个修饰键的轻按时限"), T("修饰键按下到松开不超过这个时间才算一次轻按。"), &t.ModTapMs},
+			{"activationMs", T("就绪等待"), T("按下引导键后，这段时间内按的键算作普通打字。觉得快捷键反应慢就调小，打字时误触就调大。")},
+			{"typingSuppressMs", T("打字后的保护时间"), T("刚打完字紧接着按引导键时，改用这个更长的等待。快速打字时空格偶尔被吞就调大。")},
+			{"tapReplayMs", T("轻点仍输入本键的时限"), T("按住不超过这个时间并且没有触发快捷键，松开时照常输入这个键；超过则什么都不输入。")},
+			{"tapTimeoutMs", T("轻按型引导键等待触发键"), T("轻按引导键后，这段时间内没有按触发键就自动退出。")},
+			{"modTapMs", T("单个修饰键的轻按时限"), T("修饰键按下到松开不超过这个时间才算一次轻按。")},
 		} {
-			ctl, rh := a.row(c, ix, iy, inner, r.title, r.desc, 150, i == 0)
+			r := struct {
+				key string
+				v   *int
+			}{r0.key, map[string]*int{"activationMs": &t.ActivationMs, "typingSuppressMs": &t.TypingSuppressMs,
+				"tapReplayMs": &t.TapReplayMs, "tapTimeoutMs": &t.TapTimeoutMs, "modTapMs": &t.ModTapMs}[r0.key]}
+			ctl, rh := a.row(c, ix, iy, inner, r0.title, r0.desc, 150, i == 0)
 			s := a.num(r.key, *r.v)
-			before := *s
-			c.Field("gen/"+r.key, Rect{ctl.X, ctl.Y - 1, 96, 36}, s, "", false, false, true)
+			id := "gen/" + r.key
+			c.Field(id, Rect{ctl.X, ctl.Y - 1, 96, 36}, s, "", false, false, true)
 			c.Text(T("毫秒"), FSmall, Rect{ctl.X + 104, ctl.Y, 46, 34}, p.Muted, Left)
-			if *s != before && *s != "" {
-				*r.v = atoi(*s)
-				c2, err := a.H.Save(a.cfg)
-				if err != nil {
-					a.say(err.Error(), true)
-				} else {
-					a.cfg = clone(c2) // the field keeps what was typed
+			// Save as the number is typed, once per distinct text. Leaving
+			// the field shows the value as it was accepted.
+			if text := *s; text != a.numSeen[r.key] {
+				a.numSeen[r.key] = text
+				if v := atoi(text); text != "" && v != *r.v {
+					*r.v = v
+					if c2, err := a.H.Save(a.cfg); err != nil {
+						a.say(err.Error(), true)
+						a.cfg = clone(a.H.Config())
+					} else {
+						a.cfg = clone(c2)
+					}
+					t = &a.cfg.Timing
 				}
+			} else if c.Focused() != id && text != itoa(*r.v) {
+				delete(a.numS, r.key)
+				delete(a.numSeen, r.key)
 			}
 			iy += rh
 		}

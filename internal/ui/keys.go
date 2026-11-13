@@ -376,7 +376,10 @@ func (a *App) bindingRow(c *Ctx, b *config.Binding, r Rect, sep bool) {
 	}
 	p := c.P
 	id := "b/" + b.ID
-	rowHot := c.Hover(id, r)
+	// The row itself first; the check box and the switch are asked later,
+	// so they win when the pointer is over them.
+	rowClicked := c.Click(id, r)
+	rowHot := c.hot == id
 	cur := a.draft != nil && a.draft.ID == b.ID && b.ID != ""
 	if cur {
 		c.Fill(r.Inset(1), 10, raster.RGB(p.AccentSoft))
@@ -471,7 +474,7 @@ func (a *App) bindingRow(c *Ctx, b *config.Binding, r Rect, sep bool) {
 	if d := detail(b); d != "" && d != name {
 		c.Text(d, FSmall, Rect{x + nw + 8, r.Y + 1, right - x - nw - 16, r.H}, dim(p.Muted), Left)
 	}
-	if c.Click(id, r) {
+	if rowClicked {
 		a.openEditor(c, b, false)
 	}
 }

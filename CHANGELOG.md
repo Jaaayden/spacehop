@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- The hint window no longer appears late the first time after start: it is drawn once out of sight shortly after launch, so fonts are already loaded
+
 ## 0.2.0
 
 First release.

@@ -348,6 +348,31 @@ func TestTimingFieldSaves(t *testing.T) {
 	}
 }
 
+// A key people type with keeps its quick tap when it becomes a hold
+// leader, however it got there.
+func TestTypingKeyKeepsTap(t *testing.T) {
+	r := newRig(t)
+	r.app.cfg.Leaders[0] = config.Leader{ID: "space", Mode: config.Hold, Key: "F12"}
+	r.app.save(true)
+	r.app.startRec("lead:0")
+	r.app.OnRecordKey("Space", true)
+	if l := r.host.cfg.Leaders[0]; l.Key != "Space" || !l.KeepTap {
+		t.Fatalf("recording Space: %+v", l)
+	}
+	r.app.startRec("lead:0")
+	r.app.OnRecordKey("CapsLock", true)
+	r.app.cfg.Leaders[0].KeepTap = false
+	r.app.cfg.Leaders[0].Mode, r.app.cfg.Leaders[0].Key = config.Tap, "Alt+S"
+	r.app.cfg.Bindings = nil
+	r.app.save(true)
+	r.app.Goto(pageLeader)
+	r.frame()
+	r.clickText(t, T("按住")) // first time in hold mode for this session: the safe default
+	if l := r.host.cfg.Leaders[0]; l.Mode != config.Hold || l.Key != "Space" || !l.KeepTap {
+		t.Fatalf("switching to hold: %+v", l)
+	}
+}
+
 func TestLeaderModeRoundTrip(t *testing.T) {
 	r := newRig(t)
 	r.app.Goto(pageLeader)

@@ -409,6 +409,16 @@ func isMod(k string) bool {
 	return false
 }
 
+// typingKey reports whether a key is one people type text with. As a hold
+// leader such a key must keep its quick tap unless the user decides otherwise.
+func typingKey(k string) bool {
+	switch k {
+	case "Space", "Enter", "Tab", "Backspace":
+		return true
+	}
+	return len(k) == 1
+}
+
 func genericMod(k string) string {
 	if k == "RWin" {
 		return "Win"
@@ -525,6 +535,9 @@ func (a *App) OnRecordKey(key string, down bool) {
 		}
 		if l.Mode == config.Hold {
 			l.Key = key
+			if typingKey(key) {
+				l.KeepTap = true // never take a key people type with away silently
+			}
 		} else {
 			ch := chord()
 			if !strings.Contains(ch, "+") {

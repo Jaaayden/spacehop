@@ -76,7 +76,7 @@ func (a *App) pageLeader(c *Ctx, view Rect) {
 		pre := "ld/" + itoa(i)
 		h := 200.0
 		if l.Mode == config.Hold {
-			h = 262
+			h = 268
 		}
 		card := Rect{x, y, w, h}
 		c.Card(card)
@@ -95,7 +95,13 @@ func (a *App) pageLeader(c *Ctx, view Rect) {
 			case had && was.Mode != l.Mode:
 				l.Mode, l.Key, l.KeepTap = was.Mode, was.Key, was.KeepTap
 			case pick == 0:
-				l.Mode, l.Key = config.Hold, "F12"
+				// Space with its quick tap kept, unless another leader has it.
+				l.Mode, l.Key, l.KeepTap = config.Hold, "Space", true
+				for j := range a.cfg.Leaders {
+					if j != i && a.cfg.Leaders[j].Key == "Space" {
+						l.Key, l.KeepTap = "F12", false
+					}
+				}
 			default:
 				k := "S"
 				if len(l.Key) == 1 {
@@ -165,7 +171,11 @@ func (a *App) pageLeader(c *Ctx, view Rect) {
 		})
 		cy += 58
 		if l.Mode == config.Hold {
-			ctl, rh := a.row(c, cx, cy, w-36, T("保留轻点"), T("轻点一下照常输入这个键，按住才是引导键。关掉后这个键专门用作引导键，按下立即就绪。"), 38, true)
+			desc := T("轻点一下照常输入这个键，按住才是引导键。关掉后这个键专门用作引导键，按下立即就绪。")
+			if !l.KeepTap && typingKey(l.Key) {
+				desc = i18n.F("现在按 %s 不会再输入任何字符。平时要用它打字的话，请把这一项打开。", l.Key)
+			}
+			ctl, rh := a.row(c, cx, cy, w-36, T("保留轻点"), desc, 38, true)
 			if c.Toggle(pre+"/keep", ctl.X, ctl.Y+6, l.KeepTap) {
 				l.KeepTap = !l.KeepTap
 				a.save(true)

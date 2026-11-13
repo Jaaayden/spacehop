@@ -9,7 +9,7 @@
 Tap Space and it types a space as always; hold it and it leads a shortcut. SpaceHop tells the two apart.
 
 - **Small**: one executable of about 4 MB. No installer, no administrator rights, no runtime to install
-- **Fast**: the keyboard hook takes under a millisecond per key; when idle it does nothing at all
+- **Fast**: the keyboard hook usually takes under a millisecond per key; when idle it does nothing at all
 - **Native**: the interface is drawn by the program itself, no web technology; Chinese / English, dark / light
 - **Clean**: never goes online, never records what you type; the configuration is JSON you can read and edit
 

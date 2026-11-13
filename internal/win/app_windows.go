@@ -39,6 +39,11 @@ const (
 
 type notice struct{ title, text, url string }
 
+type job struct {
+	action config.Action
+	label  string
+}
+
 // App owns the UI thread: the hidden main window, the hooks, the hint
 // window and the tray icon. Everything that touches the engine runs on it.
 type App struct {
@@ -50,6 +55,7 @@ type App struct {
 	// keys to that window. recTick lets the hand-over expire on its own.
 	recHwnd atomic.Uintptr
 	recTick atomic.Uint32
+	lastKey atomic.Int64 // when the keyboard was last touched, Unix ms
 
 	// Set only by the self-test: called on the UI thread before the keyboard
 	// hook is installed, and instead of running a shortcut's action.
@@ -68,6 +74,9 @@ type App struct {
 	current           atomic.Pointer[config.Config] // read from any thread
 	pending           atomic.Pointer[config.Config]
 	msgTaskbarCreated uint32
+
+	startWorker sync.Once
+	jobs        chan job
 
 	mu       sync.Mutex // guards the fields below
 	notices  []notice
@@ -240,6 +249,7 @@ func kbProc(nCode, wParam, lParam uintptr) uintptr {
 	if int32(nCode) == 0 {
 		k := (*kbdllHook)(ptr(lParam))
 		if k.Extra != injectMagic {
+			a.lastKey.Store(time.Now().UnixMilli())
 			down := wParam == wmKeyDown || wParam == wmSysKeyDown
 			if h := a.recHwnd.Load(); h != 0 {
 				now := uint32(time.Now().UnixMilli())
@@ -455,12 +465,26 @@ func (a *App) Run(b *config.Binding) {
 		a.runHook(b)
 		return
 	}
-	action, label := b.Action, b.Label()
-	go func() {
-		if err := a.RunAction(action); err != nil {
-			a.Notify(label + "：" + err.Error())
-		}
-	}()
+	// Actions run one after another in the order they were triggered: two
+	// shortcuts pressed in quick succession must not race for the front.
+	a.startWorker.Do(func() {
+		a.jobs = make(chan job, 64)
+		go func() {
+			for j := range a.jobs {
+				switch err := a.RunAction(j.action); err {
+				case nil:
+				case errNotFront:
+					a.trace("refused " + j.label)
+				default:
+					a.Notify(j.label + "：" + err.Error())
+				}
+			}
+		}()
+	})
+	select {
+	case a.jobs <- job{b.Action, b.Label()}:
+	default: // hopelessly behind: drop rather than pile up
+	}
 }
 
 func (a *App) Hint(delayMs int) {

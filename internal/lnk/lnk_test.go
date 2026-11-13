@@ -62,3 +62,35 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
+
+func TestParseLink(t *testing.T) {
+	le := binary.LittleEndian
+	d := build(true, `C:\App\app.exe`, "")
+	str := func(s string) []byte {
+		u := utf16.Encode([]rune(s))
+		b := []byte{byte(len(u)), byte(len(u) >> 8)}
+		for _, c := range u {
+			b = append(b, byte(c), byte(c>>8))
+		}
+		return b
+	}
+	// name, working directory, arguments, all Unicode
+	le.PutUint32(d[0x14:], le.Uint32(d[0x14:])|0x4|0x10|0x20|0x80)
+	d = append(d, str("My app")...)
+	d = append(d, str(`C:\App`)...)
+	d = append(d, str(`--profile "工作" --new`)...)
+	l, err := ParseLink(d)
+	if err != nil || l.Target != `C:\App\app.exe` || l.Dir != `C:\App` || l.Args != `--profile "工作" --new` || l.Special {
+		t.Fatalf("%+v %v", l, err)
+	}
+	le.PutUint32(d[0x14:], le.Uint32(d[0x14:])|0x2000) // run as administrator
+	if l, _ := ParseLink(d); !l.Special {
+		t.Fatal("an elevated shortcut must be left to the shell")
+	}
+	// Cut short anywhere: never panic, target still known.
+	for n := len(d) - 1; n > len(d)-40; n-- {
+		if l, err := ParseLink(d[:n]); err != nil || l.Target == "" {
+			t.Fatalf("truncated at %d: %+v %v", n, l, err)
+		}
+	}
+}

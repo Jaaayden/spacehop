@@ -651,6 +651,7 @@ var logWords = map[string][2]string{
 	"cancel":  {i18n.N("取消"), ""},
 	"timeout": {i18n.N("超时"), i18n.N("没有等到触发键")},
 	"leader":  {i18n.N("引导"), i18n.N("轻按型引导键已就绪")},
+	"refused": {i18n.N("被拒"), i18n.N("Windows 没有允许把这个窗口切到最前面")},
 }
 
 func (a *App) pollLog(seq int) {

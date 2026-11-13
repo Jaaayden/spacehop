@@ -68,6 +68,19 @@ var plainProcCB = syscall.NewCallback(func(hwnd, message, wParam, lParam uintptr
 	return r
 })
 
+// makeSink creates the window that receives the test's key presses.
+func (t *selfTest) makeSink() {
+	inst, _, _ := pGetModuleHandle.Call(0)
+	brush, _, _ := pCreateSolidBrush.Call(0x004A3F38)
+	wc := wndClassEx{WndProc: plainProcCB, Instance: inst, ClassName: u16("SpaceHopSelfTest"), Background: brush}
+	wc.Size = uint32(unsafe.Sizeof(wc))
+	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	// WS_OVERLAPPEDWINDOW | WS_VISIBLE
+	t.sink, _, _ = pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(u16("SpaceHopSelfTest"))),
+		uintptr(unsafe.Pointer(u16("SpaceHop self-test"))), 0x10CF0000, 0, 0, 800, 600, 0, 0, inst, 0)
+	pShowWindow.Call(t.sink, 3) // maximised: a plain backdrop for the screenshots
+}
+
 // focus makes sure our own window has the keyboard. Keys are only ever
 // sent when it does, so they cannot reach another program.
 func (t *selfTest) focus() bool {
@@ -194,14 +207,7 @@ func SelfTest(out, version string, uiOnly bool) int {
 	a.beforeHook = func() {
 		inst, _, _ := pGetModuleHandle.Call(0)
 		pSetWindowsHookEx.Call(whKeyboardLL, sinkProcCB, inst, 0)
-		brush, _, _ := pCreateSolidBrush.Call(0x004A3F38)
-		wc := wndClassEx{WndProc: plainProcCB, Instance: inst, ClassName: u16("SpaceHopSelfTest"), Background: brush}
-		wc.Size = uint32(unsafe.Sizeof(wc))
-		pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
-		// WS_OVERLAPPEDWINDOW | WS_VISIBLE
-		t.sink, _, _ = pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(u16("SpaceHopSelfTest"))),
-			uintptr(unsafe.Pointer(u16("SpaceHop self-test"))), 0x10CF0000, 0, 0, 800, 600, 0, 0, inst, 0)
-		pShowWindow.Call(t.sink, 3) // maximised: a plain backdrop for the screenshots
+		t.makeSink()
 	}
 	done := make(chan struct{})
 	go func() {

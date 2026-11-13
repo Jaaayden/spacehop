@@ -28,6 +28,84 @@ func Target(file string) (string, error) {
 	return Parse(data)
 }
 
+// Link is what a shortcut says about starting its program.
+type Link struct {
+	Target string // the program
+	Args   string // command-line arguments
+	Dir    string // working directory
+	// Special is set for shortcuts that must be started by the shell itself:
+	// "run as administrator" and installer-advertised shortcuts.
+	Special bool
+}
+
+// Read returns everything needed to start a shortcut's program directly.
+func Read(file string) (Link, error) {
+	st, err := os.Stat(file)
+	if err != nil {
+		return Link{}, err
+	}
+	if st.Size() > 1<<20 {
+		return Link{}, errFormat
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return Link{}, err
+	}
+	return ParseLink(data)
+}
+
+// ParseLink is Read for a shortcut already in memory.
+func ParseLink(d []byte) (Link, error) {
+	target, err := Parse(d)
+	if err != nil {
+		return Link{}, err
+	}
+	le := binary.LittleEndian
+	flags := le.Uint32(d[0x14:])
+	l := Link{Target: target, Special: flags&(0x1000|0x2000) != 0} // HasDarwinID | RunAsUser
+	off := 0x4C
+	if flags&0x1 != 0 {
+		off += 2 + int(le.Uint16(d[off:]))
+	}
+	off += int(le.Uint32(d[off:])) // LinkInfo, present or Parse would have failed
+	// StringData: name, relative path, working directory, arguments, icon.
+	for _, bit := range []uint32{0x4, 0x8, 0x10, 0x20} {
+		if flags&bit == 0 {
+			continue
+		}
+		if off+2 > len(d) {
+			return l, nil
+		}
+		n := int(le.Uint16(d[off:]))
+		off += 2
+		var s string
+		if flags&0x80 != 0 { // IsUnicode
+			if off+2*n > len(d) {
+				return l, nil
+			}
+			u := make([]uint16, n)
+			for i := range u {
+				u[i] = le.Uint16(d[off+2*i:])
+			}
+			s = string(utf16.Decode(u))
+			off += 2 * n
+		} else {
+			if off+n > len(d) {
+				return l, nil
+			}
+			s = narrow(append(append([]byte{}, d[off:off+n]...), 0))
+			off += n
+		}
+		switch bit {
+		case 0x10:
+			l.Dir = s
+		case 0x20:
+			l.Args = s
+		}
+	}
+	return l, nil
+}
+
 func Parse(d []byte) (string, error) {
 	le := binary.LittleEndian
 	if len(d) < 0x4C || le.Uint32(d) != 0x4C {

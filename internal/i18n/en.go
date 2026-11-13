@@ -381,4 +381,6 @@ var en = map[string]string{
 	"SpaceHop 无法启动：":               "SpaceHop cannot start: ",
 	"、":                            ", ",
 	"现在按 %s 不会再输入任何字符。平时要用它打字的话，请把这一项打开。": "Pressing %s no longer types anything. Turn this on if you type with that key.",
+	"被拒": "Refused",
+	"Windows 没有允许把这个窗口切到最前面": "Windows did not let this window come to the front",
 }

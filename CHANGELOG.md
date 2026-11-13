@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Opening an app chosen from the Start menu is as fast as starting its exe: the shortcut file is read directly instead of being resolved by the shell (in the test VM, 380–480 ms down to 100–180 ms from key press to window)
+- "Turn off the display" and "Sleep" wait until the keys are released, so letting go of the shortcut no longer wakes the screen at once
+- Actions run strictly in the order they were triggered, and bringing a window to the front is verified and retried
+- The desktop no longer counts as one of Explorer's windows when switching to it
+- The activity log shows when Windows refused to bring a window forward
+
 ## 0.2.1
 
 - The hint window no longer appears late the first time after start: it is drawn once out of sight shortly after launch, so fonts are already loaded

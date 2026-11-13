@@ -22,6 +22,9 @@ func main() {
 		}
 		os.Exit(win.SelfTest(out, version, len(args) > 2 && args[2] == "ui"))
 	}
+	if len(args) == 2 && args[0] == "--bench" {
+		os.Exit(win.Bench(args[1], version))
+	}
 	if len(args) == 2 && args[0] == "--screenshot" {
 		win.Screenshot(args[1])
 		return

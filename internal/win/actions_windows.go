@@ -9,11 +9,13 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"spacehop/internal/config"
 	"spacehop/internal/engine"
 	"spacehop/internal/i18n"
+	"spacehop/internal/lnk"
 )
 
 var envRef = regexp.MustCompile(`%([^%]+)%`)
@@ -31,6 +33,11 @@ func expand(p string) string {
 		return m
 	})
 }
+
+// errNotFront: Windows refused to bring the window forward. It is written
+// to the activity log rather than shown, because nothing can be done about
+// it at that moment.
+var errNotFront = actionError("not in front")
 
 // RunAction performs an action. It is called off the UI thread.
 func (a *App) RunAction(act config.Action) error {
@@ -78,8 +85,12 @@ func (a *App) RunAction(act config.Action) error {
 		case "lock":
 			pLockWorkStation.Call()
 		case "sleep":
+			a.waitKeysQuiet()
 			pSetSuspendState.Call(0, 0, 0)
 		case "display-off":
+			// Letting go of the shortcut's own keys counts as activity and
+			// would wake the screen again at once.
+			a.waitKeysQuiet()
 			pPostMessage.Call(a.hwnd, wmSysCmd, 0xF170, 2) // SC_MONITORPOWER, off
 		case "show-desktop":
 			return sendChord("Win+D")
@@ -179,7 +190,9 @@ func launchOrShow(ap config.AppRef, args string, fresh bool) error {
 	target := expand(ap.Path)
 	if exe := exeOf(target, ap.Exe); exe != "" && !fresh {
 		if wins := windowsOf(exe); len(wins) > 0 {
-			activate(wins[0])
+			if !activate(wins[0]) {
+				return errNotFront
+			}
 			return nil
 		}
 	}
@@ -190,7 +203,86 @@ func launchOrShow(ap config.AppRef, args string, fresh bool) error {
 	if filepath.IsAbs(target) {
 		dir = filepath.Dir(target)
 	}
-	return shellExecute(target, args, dir, swShowNormal)
+	// Starting a Start-menu shortcut through the shell costs a few hundred
+	// milliseconds of link resolution. Read the shortcut ourselves and start
+	// its program directly: that is what makes opening an app instant.
+	if strings.EqualFold(filepath.Ext(target), ".lnk") {
+		if l, ok := resolveLink(target); ok {
+			if args != "" && l.Args != "" {
+				args = l.Args + " " + args
+			} else if args == "" {
+				args = l.Args
+			}
+			if l.Dir != "" {
+				dir = expand(l.Dir)
+			} else {
+				dir = filepath.Dir(l.Target)
+			}
+			if startProgram(l.Target, args, dir) == nil {
+				return nil
+			}
+			return shellExecute(target, "", filepath.Dir(target), swShowNormal) // as the shell would
+		}
+	}
+	return startProgram(target, args, dir)
+}
+
+// startProgram starts an executable the most direct way there is, by
+// creating the process ourselves. Anything that needs the shell (a document,
+// a program that asks for elevation) falls back to ShellExecute.
+func startProgram(target, args, dir string) error {
+	if !strings.EqualFold(filepath.Ext(target), ".exe") || !filepath.IsAbs(target) {
+		return shellExecute(target, args, dir, swShowNormal)
+	}
+	cmd := exec.Command(target)
+	line := `"` + target + `"`
+	if args != "" {
+		line += " " + args
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{CmdLine: line}
+	cmd.Dir = dir
+	if err := cmd.Start(); err != nil {
+		return shellExecute(target, args, dir, swShowNormal)
+	}
+	_ = cmd.Process.Release()
+	return nil
+}
+
+type linkEntry struct {
+	mod  time.Time
+	link lnk.Link
+	ok   bool
+}
+
+var (
+	linkMu    sync.Mutex
+	linkCache = map[string]linkEntry{}
+)
+
+// resolveLink returns the program behind a shortcut when it can simply be
+// started directly. The answer is remembered until the file changes.
+func resolveLink(path string) (lnk.Link, bool) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return lnk.Link{}, false
+	}
+	linkMu.Lock()
+	defer linkMu.Unlock()
+	if e, hit := linkCache[path]; hit && e.mod.Equal(st.ModTime()) {
+		return e.link, e.ok
+	}
+	if len(linkCache) > 256 {
+		linkCache = map[string]linkEntry{}
+	}
+	l, err := lnk.Read(path)
+	ok := err == nil && !l.Special && strings.EqualFold(filepath.Ext(l.Target), ".exe")
+	if ok {
+		if _, err := os.Stat(l.Target); err != nil {
+			ok = false // moved, or a path we could not read exactly
+		}
+	}
+	linkCache[path] = linkEntry{st.ModTime(), l, ok}
+	return l, ok
 }
 
 // ---- finding and activating windows ----
@@ -221,6 +313,10 @@ func isAppWindow(hwnd uintptr) bool {
 		return false
 	}
 	if n, _, _ := pGetWindowTextLength.Call(hwnd); n == 0 {
+		return false
+	}
+	switch className(hwnd) {
+	case "Progman", "WorkerW": // the desktop belongs to explorer.exe but is not one of its windows
 		return false
 	}
 	var cloaked uint32
@@ -255,10 +351,14 @@ func windowsOf(exe string) []uintptr {
 	return out
 }
 
-// activate brings a window to the front. Windows only lets the foreground
-// program do that freely, so fall back to joining the foreground thread's
-// input queue, and finally to a neutral key press.
-func activate(hwnd uintptr) {
+// activate brings a window to the front and makes sure it got there.
+//
+// Windows lets only the program that received the last input change the
+// foreground window. A shortcut arrives through our keyboard hook, which
+// does not count, so first send a null input of our own, which does. If the
+// window still is not in front, join the foreground thread's input queue,
+// and try again a couple of times: the window we are leaving may be busy.
+func activate(hwnd uintptr) bool {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if min, _, _ := pIsIconic.Call(hwnd); min != 0 {
@@ -268,23 +368,43 @@ func activate(hwnd uintptr) {
 		fg, _, _ := pGetForegroundWindow.Call()
 		return fg == hwnd
 	}
-	pSetForegroundWindow.Call(hwnd)
-	if isFront() {
-		return
-	}
-	fg, _, _ := pGetForegroundWindow.Call()
-	_, fgThread := windowPID(fg)
 	self, _, _ := pGetCurrentThreadId.Call()
-	if fgThread != 0 && uintptr(fgThread) != self {
-		pAttachThreadInput.Call(self, uintptr(fgThread), 1)
-		pBringWindowToTop.Call(hwnd)
-		pSetForegroundWindow.Call(hwnd)
-		pAttachThreadInput.Call(self, uintptr(fgThread), 0)
+	for attempt := 0; attempt < 4; attempt++ {
 		if isFront() {
+			return true
+		}
+		var null mouseInput // a mouse event that moves and presses nothing
+		null.Type, null.Extra = inputMouse, injectMagic
+		pSendInput.Call(1, uintptr(unsafe.Pointer(&null)), inputSize)
+		pSetForegroundWindow.Call(hwnd)
+		if isFront() {
+			return true
+		}
+		fg, _, _ := pGetForegroundWindow.Call()
+		if _, fgThread := windowPID(fg); fgThread != 0 && uintptr(fgThread) != self {
+			pAttachThreadInput.Call(self, uintptr(fgThread), 1)
+			pBringWindowToTop.Call(hwnd)
+			pSetForegroundWindow.Call(hwnd)
+			pAttachThreadInput.Call(self, uintptr(fgThread), 0)
+		}
+		if isFront() {
+			return true
+		}
+		// An unassigned virtual key: counts as input from us, does nothing else.
+		sendStrokes([]engine.Stroke{{VK: 0xE8, Down: true}, {VK: 0xE8, Down: false}})
+		pSetForegroundWindow.Call(hwnd)
+		time.Sleep(time.Duration(8*(attempt+1)) * time.Millisecond)
+	}
+	return isFront()
+}
+
+// waitKeysQuiet returns once no key has been pressed or released for a
+// little while (at most a few seconds).
+func (a *App) waitKeysQuiet() {
+	for i := 0; i < 100; i++ {
+		if time.Now().UnixMilli()-a.lastKey.Load() > 700 {
 			return
 		}
+		time.Sleep(50 * time.Millisecond)
 	}
-	// An unassigned virtual key: counts as input from us, does nothing else.
-	sendStrokes([]engine.Stroke{{VK: 0xE8, Down: true}, {VK: 0xE8, Down: false}})
-	pSetForegroundWindow.Call(hwnd)
 }

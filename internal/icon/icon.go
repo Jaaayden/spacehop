@@ -2,7 +2,7 @@
 // the tray icon at run time, the icon embedded in the executable and the
 // images used by the settings page and the README, so they cannot drift.
 //
-// The mark: a ball hopping off a lime space bar, on an ink tile.
+// The mark: a ringed planet with a small moon hopping over it.
 package icon
 
 import (
@@ -17,15 +17,15 @@ import (
 type rgb struct{ r, g, b float64 }
 
 var (
-	tileTop  = rgb{0x2B, 0x2F, 0x3A}
-	tileBot  = rgb{0x12, 0x14, 0x19}
-	keyTop   = rgb{0xD4, 0xFA, 0x52}
-	keyBot   = rgb{0xB5, 0xE8, 0x2C}
-	keySide  = rgb{0x6E, 0x94, 0x10}
-	ball     = rgb{0xF6, 0xF9, 0xEE}
-	offKey   = rgb{0x9A, 0xA0, 0xAC}
-	offSide  = rgb{0x5C, 0x61, 0x6C}
-	offBall  = rgb{0xC9, 0xCD, 0xD6}
+	skyTop   = rgb{0x2C, 0x31, 0x40}
+	skyBot   = rgb{0x0E, 0x10, 0x15}
+	limeTop  = rgb{0xE0, 0xFE, 0x6E}
+	limeBot  = rgb{0xA6, 0xDC, 0x1E}
+	limeDeep = rgb{0x5E, 0x86, 0x0C}
+	ringCol  = rgb{0xF5, 0xF8, 0xEC}
+	greyTop  = rgb{0xC4, 0xC8, 0xD2}
+	greyBot  = rgb{0x8A, 0x90, 0x9C}
+	greyDeep = rgb{0x55, 0x5A, 0x66}
 	sampling = 4
 )
 
@@ -33,15 +33,13 @@ func mix(a, b rgb, t float64) rgb {
 	return rgb{a.r + (b.r-a.r)*t, a.g + (b.g-a.g)*t, a.b + (b.b-a.b)*t}
 }
 
-// inRound reports whether (x, y) lies in a rounded rectangle.
-func inRound(x, y, x0, y0, x1, y1, r float64) bool {
-	if x < x0 || x > x1 || y < y0 || y > y1 {
-		return false
-	}
-	cx := math.Max(x0+r, math.Min(x, x1-r))
-	cy := math.Max(y0+r, math.Min(y, y1-r))
-	dx, dy := x-cx, y-cy
-	return dx*dx+dy*dy <= r*r
+// inSquircle reports whether a point lies in a superellipse filling the
+// unit square up to the given margin: rounder than a rounded rectangle,
+// with no flat-to-curve seam.
+func inSquircle(x, y, margin float64) bool {
+	h := 0.5 - margin
+	u, v := math.Abs(x-0.5)/h, math.Abs(y-0.5)/h
+	return math.Pow(u, 5)+math.Pow(v, 5) <= 1
 }
 
 func inCircle(x, y, cx, cy, r float64) bool {
@@ -49,43 +47,68 @@ func inCircle(x, y, cx, cy, r float64) bool {
 	return dx*dx+dy*dy <= r*r
 }
 
+const ringTilt = -22 * math.Pi / 180
+
 // sample returns the colour and opacity of the icon at a point of the unit
-// square. small selects the simplified drawing used below 28 pixels.
+// square. small selects the heavier drawing used below 28 pixels.
+//
+// The mark is a ringed planet in a night sky, with a small moon hopping
+// over it: "space" and "hop".
 func sample(x, y float64, small, off bool) (rgb, float64) {
-	if !inRound(x, y, 0.03, 0.03, 0.97, 0.97, 0.225) {
+	if !inSquircle(x, y, 0.02) {
 		return rgb{}, 0
 	}
-	kt, kb, ks, bl := keyTop, keyBot, keySide, ball
+	top, bot, deep := limeTop, limeBot, limeDeep
 	if off {
-		kt, kb, ks, bl = offKey, offKey, offSide, offBall
+		top, bot, deep = greyTop, greyBot, greyDeep
 	}
-	// Space bar: a key cap seen slightly from above.
-	x0, x1, top, bot, depth, r := 0.19, 0.81, 0.585, 0.735, 0.05, 0.065
-	bx, by, br := 0.665, 0.285, 0.085
+	// Planet, ring (outer and inner radii along and across), moon.
+	px, py, pr := 0.475, 0.575, 0.200
+	ra, rb, ia, ib := 0.405, 0.128, 0.330, 0.076
+	mx, my, mr := 0.725, 0.245, 0.058
 	if small {
-		x0, x1, top, bot, depth, r = 0.16, 0.84, 0.56, 0.76, 0.0, 0.07
-		bx, by, br = 0.66, 0.29, 0.12
+		pr = 0.215
+		ra, rb, ia, ib = 0.42, 0.150, 0.315, 0.070
+		mx, my, mr = 0.735, 0.235, 0.085
 	}
-	if inCircle(x, y, bx, by, br) {
-		return bl, 1
+	// Ring coordinates: u along the ring, v across it; v > 0 is the near side.
+	dx, dy := x-px, y-py
+	u := dx*math.Cos(ringTilt) + dy*math.Sin(ringTilt)
+	v := -dx*math.Sin(ringTilt) + dy*math.Cos(ringTilt)
+	band := func(shift float64) bool {
+		w := v - shift
+		return u*u/(ra*ra)+w*w/(rb*rb) <= 1 && u*u/(ia*ia)+w*w/(ib*ib) > 1
 	}
-	if inRound(x, y, x0, top, x1, bot, r) {
-		return mix(kt, kb, (y-top)/(bot-top)), 1
+	inPlanet := inCircle(x, y, px, py, pr)
+	if inCircle(x, y, mx, my, mr) {
+		return ringCol, 1
 	}
-	if depth > 0 && inRound(x, y, x0, top+depth, x1, bot+depth, r) {
-		return ks, 1
+	if band(0) && (v > 0 || !inPlanet) {
+		return ringCol, 1
 	}
+	if inPlanet {
+		c := mix(top, bot, (y-(py-pr))/(2*pr))
+		// The ring's shadow on the planet, and a darker limb away from the light.
+		if !small && band(0.034) && v > 0 {
+			c = mix(c, deep, 0.55)
+		}
+		if !inCircle(x, y, px-0.035, py-0.04, pr) {
+			c = mix(c, deep, 0.5)
+		}
+		return c, 1
+	}
+	c := mix(skyTop, skyBot, y)
 	if !small {
-		// The hop: dots along the arc from the bar up to the ball.
-		for i, d := range [][3]float64{{0.335, 0.47, 0.026}, {0.405, 0.355, 0.033}, {0.515, 0.285, 0.040}} {
+		// The path of the hop, and a few stars.
+		for _, d := range [][4]float64{{0.615, 0.205, 0.017, 0.50}, {0.530, 0.212, 0.012, 0.32},
+			{0.215, 0.255, 0.012, 0.45}, {0.815, 0.640, 0.010, 0.35}, {0.285, 0.815, 0.008, 0.30}} {
 			if inCircle(x, y, d[0], d[1], d[2]) {
-				return mix(tileBot, kt, 0.30+0.22*float64(i)), 1
+				return mix(c, ringCol, d[3]), 1
 			}
 		}
 	}
-	// Tile, with a faint highlight along the top edge.
-	c := mix(tileTop, tileBot, y)
-	if y < 0.5 && !inRound(x, y, 0.03, 0.045, 0.97, 0.97, 0.225) {
+	// A soft light along the upper edge gives the tile some body.
+	if !inSquircle(x, y-0.02, 0.02) {
 		c = mix(c, rgb{255, 255, 255}, 0.16)
 	}
 	return c, 1

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- New command `--update`: check for updates and install a newer version, for scripts and for testing the updater
+
 ## 0.3.0
 
 - In-app update: SpaceHop checks GitHub for a newer release about once a day, tells you, and updates on your click (Settings › About, or the tray menu). The download is checked against `SHA256SUMS.txt`, test-started, then swapped in; the old file is kept until the new one has run and put back if it cannot start. Never restarts by itself, can be turned off, uses the system proxy

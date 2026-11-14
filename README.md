@@ -126,6 +126,7 @@ While SpaceHop is running, run it again with an argument:
 | `--toggle` | Pause / resume (also `--enable`, `--disable`) |
 | `--run "Notepad"` | Run a shortcut's action by name or id |
 | `--reload` | Read the configuration file again |
+| `--update` | Check for updates and install a newer version |
 | `--quit` | Quit |
 
 ## Known limits

@@ -413,7 +413,7 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 
 // command carries out a command line passed on by a second copy:
 //
-//	--settings | --toggle | --enable | --disable | --reload | --quit | --run <name or id>
+//	--settings | --toggle | --enable | --disable | --reload | --update | --quit | --run <name or id>
 func (a *App) command(args []string) {
 	if len(args) == 0 {
 		return
@@ -429,6 +429,8 @@ func (a *App) command(args []string) {
 		a.SetEnabled(false)
 	case "--reload":
 		a.reload(true)
+	case "--update":
+		a.UpdateNow()
 	case "--quit":
 		a.Quit()
 	case "--run":

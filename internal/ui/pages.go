@@ -760,7 +760,7 @@ func (a *App) pageAbout(c *Ctx, view Rect) {
 	if len(tops) == 0 {
 		uh += 30
 	}
-	cmds := [][2]string{{"--settings", T("打开这个设置窗口")}, {"--toggle", T("暂停 / 恢复（还有 --enable、--disable）")}, {`--run "name"`, T("运行一条快捷键的动作，按名称或 id")}, {"--reload", T("重新读取配置文件")}, {"--quit", T("退出")}}
+	cmds := [][2]string{{"--settings", T("打开这个设置窗口")}, {"--toggle", T("暂停 / 恢复（还有 --enable、--disable）")}, {`--run "name"`, T("运行一条快捷键的动作，按名称或 id")}, {"--reload", T("重新读取配置文件")}, {"--update", T("检查更新，有新版就安装")}, {"--quit", T("退出")}}
 	chH := 96.0 + float64(len(cmds))*32
 	rowH := math.Max(uh, chH)
 	if lw == w {

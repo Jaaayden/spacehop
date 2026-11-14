@@ -405,4 +405,5 @@ var en = map[string]string{
 	"有新版本 %s。点击查看并更新。": "Version %s is available. Click to update.",
 	"无法写入程序所在的文件夹。请手动下载新版本，或把 SpaceHop 放到你有权限的位置。": "Cannot write to the folder SpaceHop is in. Download the new version by hand, or move SpaceHop somewhere you can write.",
 	"下载的新版本在这台电脑上无法运行，已放弃更新。":                      "The downloaded version does not run on this computer, so the update was dropped.",
+	"检查更新，有新版就安装": "Check for updates and install a newer version",
 }

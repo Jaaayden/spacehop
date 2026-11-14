@@ -83,17 +83,20 @@ func (a *App) updateTick() {
 	if time.Since(time.Unix(st.LastCheck, 0)) < updateMinGap && !update.Newer(a.Version, st.Latest) {
 		return
 	}
-	a.startCheck(false)
+	a.startCheck(false, false)
 }
 
 // CheckUpdate is the "Check now" button.
-func (a *App) CheckUpdate() { a.startCheck(true) }
+func (a *App) CheckUpdate() { a.startCheck(true, false) }
+
+// UpdateNow is `--update`: check, and install a newer version if there is one.
+func (a *App) UpdateNow() { a.startCheck(true, true) }
 
 func (a *App) client() *update.Client {
 	return &update.Client{Arch: runtime.GOARCH, Get: winGet}
 }
 
-func (a *App) startCheck(manual bool) {
+func (a *App) startCheck(manual, install bool) {
 	if a.upd.off {
 		return
 	}
@@ -109,7 +112,14 @@ func (a *App) startCheck(manual bool) {
 		a.updSet(config.UpdateInfo{State: "checking", Percent: -1})
 	}
 	go func() {
-		defer func() { a.upd.mu.Lock(); a.upd.busy = false; a.upd.mu.Unlock() }()
+		defer func() {
+			a.upd.mu.Lock()
+			a.upd.busy = false
+			a.upd.mu.Unlock()
+			if install && a.UpdateInfo().State == "available" {
+				a.InstallUpdate()
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
 		defer cancel()
 		rel, err := a.client().Latest(ctx)

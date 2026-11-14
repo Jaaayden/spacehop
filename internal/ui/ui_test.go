@@ -257,12 +257,19 @@ func TestFrameCost(t *testing.T) {
 	r.app.save(true)
 	r.frame()
 	measure := func(name string) {
+		// The best of a few rounds, so that a busy shared machine does not
+		// fail the test; a real slowdown shows in every round.
 		const n = 20
-		start := time.Now()
-		for i := 0; i < n; i++ {
-			r.frame()
+		per := time.Hour
+		for round := 0; round < 4; round++ {
+			start := time.Now()
+			for i := 0; i < n; i++ {
+				r.frame()
+			}
+			if d := time.Since(start) / n; d < per {
+				per = d
+			}
 		}
-		per := time.Since(start) / n
 		t.Logf("%s: %v per frame, %d pieces of text", name, per, len(r.text.drawn))
 		if per > 12*time.Millisecond && !testing.Short() {
 			t.Errorf("%s: %v per frame is too slow", name, per)

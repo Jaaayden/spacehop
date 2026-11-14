@@ -740,6 +740,7 @@ func (a *App) pageAbout(c *Ctx, view Rect) {
 	if w < 760 {
 		lw = w
 	}
+	y = a.updateCard(c, x, y, w)
 	// Usage.
 	type used struct {
 		b *config.Binding
@@ -804,12 +805,86 @@ func (a *App) pageAbout(c *Ctx, view Rect) {
 		c.Text(cm[1], FSmall, Rect{cx + 18 + 140, ry, lw - 176, 24}, p.Muted, Left)
 	}
 	y += rowH + 14
-	priv := T("SpaceHop 不联网，不记录你输入的内容。配置保存在你的用户目录里，是可以直接阅读和编辑的 JSON。")
+	priv := T("SpaceHop 不记录你输入的内容，只有“检查更新”会联网：每天向 GitHub 问一次最新版本号，可以在上面关掉。配置保存在你的用户目录里，是可以直接阅读和编辑的 JSON。")
 	ph := c.TextH(FText, priv, w-36) + 62
 	c.Card(Rect{x, y, w, ph})
 	c.Text(T("隐私"), FBold, Rect{x + 18, y + 16, w, 20}, p.Text, Left)
 	c.Para(priv, FText, x+18, y+44, w-36, p.Muted)
 	a.endPage(c, "about", y+ph, top)
+}
+
+// updateCard shows the update state and returns the y below it.
+func (a *App) updateCard(c *Ctx, x, y, w float64) float64 {
+	p := c.P
+	u := a.H.UpdateInfo()
+	h := 126.0
+	c.Card(Rect{x, y, w, h})
+	var title, sub string
+	switch u.State {
+	case "checking":
+		title, sub = T("正在检查更新…"), T("只会向 GitHub 询问最新版本号。")
+	case "uptodate":
+		title, sub = T("已是最新版本"), "SpaceHop "+a.H.Version()
+	case "available":
+		title, sub = i18n.F("有新版本 %s", u.Latest), i18n.F("当前是 %s。更新会下载、校验、替换并重新启动。", a.H.Version())
+	case "downloading":
+		title = T("正在下载更新…")
+		if u.Percent >= 0 {
+			title = i18n.F("正在下载更新… %d%%", u.Percent)
+		}
+		sub = T("完成后会校验文件，然后重新启动。")
+	case "error":
+		title, sub = T("更新没有成功"), u.Err
+	default:
+		title, sub = T("更新"), T("SpaceHop 每天会看一次有没有新版本，不会自己重启。")
+	}
+	bx := x + w - 18
+	btn := func(id, icon, label string, st BtnStyle, off bool) bool {
+		bw := c.BtnW(icon, label)
+		bx -= bw
+		ok, _ := c.Button(id, bx, y+16, icon, label, st, off)
+		bx -= 8
+		return ok
+	}
+	switch u.State {
+	case "available":
+		if btn("upd/go", IconCheck, T("更新并重启"), BtnPrimary, false) {
+			a.H.InstallUpdate()
+		}
+		if btn("upd/notes", IconInfo, T("更新内容"), BtnPlain, false) {
+			_ = a.H.RunAction(config.Action{Type: config.OpenURL, URL: u.Page})
+		}
+	case "error":
+		if btn("upd/retry", IconPlay, T("重试"), BtnPrimary, false) {
+			a.H.CheckUpdate()
+		}
+		if u.Page != "" && btn("upd/page", IconInfo, T("手动下载"), BtnPlain, false) {
+			_ = a.H.RunAction(config.Action{Type: config.OpenURL, URL: u.Page})
+		}
+	case "checking", "downloading":
+		btn("upd/busy", IconPlay, T("请稍候"), BtnPlain, true)
+	default:
+		if btn("upd/check", IconPlay, T("检查更新"), BtnPlain, false) {
+			a.H.CheckUpdate()
+		}
+	}
+	tw := bx - (x + 18)
+	c.Text(title, FBold, Rect{x + 18, y + 16, tw, 20}, p.Text, Left)
+	c.Para(sub, FSmall, x+18, y+40, tw, p.Muted)
+	if u.State == "downloading" {
+		bar := Rect{x + 18, y + 76, w - 36, 6}
+		c.Box(bar, 3, raster.RGB(p.Raised), raster.RGB(p.Raised))
+		if u.Percent > 0 {
+			c.Box(Rect{bar.X, bar.Y, bar.W * float64(u.Percent) / 100, bar.H}, 3, raster.RGB(p.Accent), raster.RGB(p.Accent))
+		}
+	}
+	c.Fill(Rect{x + 18, y + 90, w - 36, 1}, 0, raster.RGB(p.Line))
+	c.Text(T("自动检查更新"), FText, Rect{x + 18, y + 90, w - 100, 36}, p.Text, Left)
+	if c.Toggle("upd/auto", x+w-18-38, y+97, !a.cfg.NoUpdateCheck) {
+		a.cfg.NoUpdateCheck = !a.cfg.NoUpdateCheck
+		a.save(true)
+	}
+	return y + h + 14
 }
 
 // ---- dialogs ----

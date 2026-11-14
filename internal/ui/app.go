@@ -24,6 +24,9 @@ type Host interface {
 	Usage() (total int, counts map[string]int)
 	Activity(on bool) []config.LogEntry
 	Version() string
+	UpdateInfo() config.UpdateInfo
+	CheckUpdate()
+	InstallUpdate()
 	ConfigPath() string
 	Backups() []config.Backup
 	Restore(name string) (*config.Config, error)
@@ -55,6 +58,9 @@ const (
 
 var pageNames = []string{i18n.N("快捷键"), i18n.N("引导键"), i18n.N("提示窗"), i18n.N("通用"), i18n.N("活动"), i18n.N("关于")}
 var pageIcons = []string{IconKeys, IconLeader, IconHint, IconGeneral, IconActivity, IconAbout}
+
+// PageAbout is the page number that Goto takes for "About".
+const PageAbout = pageAbout
 
 const railW = 216
 

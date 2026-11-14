@@ -200,6 +200,7 @@ func (a *App) runSettings() {
 		h = workH - 40
 	}
 	s.app = ui.New(s)
+	s.app.Goto(int(startPage.Swap(0)) - 1)
 	s.ctx = ui.NewCtx(s)
 	s.memDC, _, _ = pCreateCompatibleDC.Call(0)
 	// WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN
@@ -789,6 +790,9 @@ func (s *settings) Usage() (int, map[string]int)       { return s.a.Usage() }
 func (s *settings) Version() string                    { return s.a.Version }
 func (s *settings) ConfigPath() string                 { return config.Path() }
 func (s *settings) Backups() []config.Backup           { return config.Backups() }
+func (s *settings) UpdateInfo() config.UpdateInfo      { return s.a.UpdateInfo() }
+func (s *settings) CheckUpdate()                       { s.a.CheckUpdate() }
+func (s *settings) InstallUpdate()                     { s.a.InstallUpdate() }
 func (s *settings) Invalidate()                        { pPostMessage.Call(s.hwnd, msgSetAsync, 0, 0) }
 func (s *settings) Clipboard() string                  { t, _ := readClipboard(); return t }
 func (s *settings) SetClipboard(t string)              { _ = writeClipboard(t) }

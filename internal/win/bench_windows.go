@@ -22,6 +22,7 @@ func Bench(out, version string) int {
 	os.Setenv("SPACEHOP_DIR", dir)
 
 	a := &App{Version: version}
+	a.upd.off = true
 	var link, target string
 	for _, ap := range a.Apps() {
 		if ap.Exe == "msedge.exe" && ap.Source == "start" {

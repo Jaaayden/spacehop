@@ -33,6 +33,7 @@ const (
 	timerSeq    = 3
 	timerStats  = 4
 	timerWarm   = 5
+	timerUpdate = 6
 
 	maxLog = 300 // activity entries kept in memory
 )
@@ -48,6 +49,7 @@ type job struct {
 // window and the tray icon. Everything that touches the engine runs on it.
 type App struct {
 	Version string
+	upd     updater
 	// ShowOnStart opens the settings window once the program is running.
 	ShowOnStart bool
 
@@ -203,6 +205,7 @@ func (a *App) Main(cfg *config.Config, loadErr error) error {
 	}
 	go a.watchConfig()
 	pSetTimer.Call(a.hwnd, timerWarm, 400, 0) // after start-up has settled
+	pSetTimer.Call(a.hwnd, timerUpdate, 30000, 0)
 	if a.ShowOnStart {
 		a.ShowSettings()
 	}
@@ -312,7 +315,9 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 			a.mu.Lock()
 			u := a.clickURL
 			a.mu.Unlock()
-			if u != "" {
+			if u == aboutLink {
+				a.openAbout()
+			} else if u != "" {
 				go func() { _ = Open(u, "") }()
 			}
 		}
@@ -377,6 +382,8 @@ func wndProc(hwnd, message, wParam, lParam uintptr) uintptr {
 		case timerStats:
 			pKillTimer.Call(hwnd, timerStats)
 			a.saveStats()
+		case timerUpdate:
+			a.updateTick()
 		case timerWarm:
 			pKillTimer.Call(hwnd, timerWarm)
 			if !a.overlay.visible {

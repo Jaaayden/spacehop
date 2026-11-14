@@ -27,6 +27,15 @@ type LogEntry struct {
 	App  string `json:"app,omitempty"`
 }
 
+// UpdateInfo is what the settings window shows about updates.
+type UpdateInfo struct {
+	State   string // idle | checking | uptodate | available | downloading | error
+	Latest  string // the newer version, e.g. "0.3.0"
+	Page    string // its release page
+	Err     string
+	Percent int // download progress; -1 when unknown
+}
+
 // Incomplete reports whether the action lacks the field it needs to run.
 func (a Action) Incomplete() bool {
 	switch a.Type {

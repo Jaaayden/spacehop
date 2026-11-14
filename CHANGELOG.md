@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- In-app update: SpaceHop checks GitHub for a newer release about once a day, tells you, and updates on your click (Settings › About, or the tray menu). The download is checked against `SHA256SUMS.txt`, test-started, then swapped in; the old file is kept until the new one has run and put back if it cannot start. Never restarts by itself, can be turned off, uses the system proxy
+- The README is now English first (`README.zh-CN.md` for Chinese)
+- The privacy note says what actually goes online
+
 ## 0.2.2
 
 - Opening an app chosen from the Start menu is as fast as starting its exe: the shortcut file is read directly instead of being resolved by the shell (in the test VM, 380–480 ms down to 100–180 ms from key press to window)

@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"spacehop/internal/config"
 	"spacehop/internal/i18n"
@@ -15,6 +17,18 @@ var version = "dev"
 
 func main() {
 	args := os.Args[1:]
+	if len(args) >= 1 && (args[0] == "--probe" || args[0] == "--probe-hold") {
+		win.Probe(args[0] == "--probe-hold") // an update checks that the new program starts
+		return
+	}
+	updated := false
+	if len(args) == 2 && args[0] == "--after-update" {
+		// Started by the program being replaced: wait for it to end.
+		if pid, err := strconv.Atoi(args[1]); err == nil {
+			win.WaitProcess(pid, 15*time.Second)
+		}
+		updated, args = true, nil
+	}
 	if len(args) >= 1 && args[0] == "--selftest" {
 		out := "selftest"
 		if len(args) > 1 {
@@ -51,6 +65,10 @@ func main() {
 	}
 	if err := app.Main(cfg, loadErr); err != nil {
 		log.Printf("fatal: %v", err)
+		if updated {
+			win.RollbackSelf() // the new version cannot start: go back to the old one
+			os.Exit(1)
+		}
 		win.Fatal(i18n.T("SpaceHop 无法启动：") + err.Error())
 		os.Exit(1)
 	}

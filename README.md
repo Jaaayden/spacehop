@@ -1,157 +1,169 @@
 <p align="center"><img src="assets/icon-128.png" width="88" alt=""></p>
 <h1 align="center">SpaceHop</h1>
-<p align="center">按住空格，再按一个键，事情就办了。<br>给 Windows 的按键启动器。</p>
-<p align="center"><b>中文</b> · <a href="README.en.md">English</a></p>
+<p align="center">Hold Space, press a key, and it is done.<br>A key-driven launcher for Windows.</p>
+<p align="center"><a href="README.zh-CN.md">中文</a> · <b>English</b></p>
 
-<p align="center"><img src="assets/settings.png" width="760" alt="设置窗口"></p>
+<p align="center"><img src="assets/settings-en.png" width="760" alt="The settings window"></p>
 
-`空格 › N` 打开记事本，`空格 › F › D` 打开下载文件夹，`空格 › W › H` 把窗口放到左半屏。
-轻点空格照常打字，按住才是快捷键，SpaceHop 自动区分两者。
+`Space › N` opens Notepad, `Space › F › D` opens Downloads, `Space › W › H` puts the window on the left half.
+Tap Space and it types a space as always; hold it and it leads a shortcut. SpaceHop tells the two apart.
 
-- **小**：一个约 4 MB 的 exe，不用安装，不要管理员权限，不依赖任何运行时
-- **快**：键盘钩子处理一次按键通常不到 1 毫秒；空闲时什么都不做
-- **原生**：界面由程序自己绘制，不含网页技术；中文 / English，深色 / 浅色
-- **干净**：不联网，不记录输入内容；配置是一份可以直接读写的 JSON
+- **Small**: one executable of about 4 MB. No installer, no administrator rights, no runtime to install
+- **Fast**: the keyboard hook usually takes under a millisecond per key; when idle it does nothing at all
+- **Native**: the interface is drawn by the program itself, no web technology; Chinese / English, dark / light
+- **Clean**: never records what you type; the only thing that goes online is the daily update check, which you can turn off; the configuration is JSON you can read and edit
 
-## 安装
+## Install
 
-1. 从 [Releases](../../releases/latest) 下载 `SpaceHop-amd64.exe`（ARM 设备下载 `SpaceHop-arm64.exe`）。
-2. 放到一个固定的位置，双击运行。托盘会出现图标，第一次运行会打开设置窗口。
-3. 想让它开机就在：设置 › 通用 › 开机自动启动。
+1. Download `SpaceHop-amd64.exe` from [Releases](../../releases/latest) (`SpaceHop-arm64.exe` for ARM devices).
+2. Put it somewhere permanent and run it. An icon appears in the tray; the first run opens the settings window.
+3. To have it start with Windows: Settings › General › Start with Windows.
 
-需要 Windows 10 或 11。exe 没有代码签名，第一次运行时 SmartScreen 可能提示，点“更多信息 › 仍要运行”。
+Windows 10 or 11. Updates are built in (see [Updates](#updates)). The executable is not code-signed, so SmartScreen may warn on the first run: choose “More info › Run anyway”.
 
-## 上手
+## First steps
 
-<img src="assets/hint.png" width="250" align="right" alt="提示窗">
+<img src="assets/hint.png" width="250" align="right" alt="The hint window">
 
-按住空格约半秒，屏幕下方会出现提示窗，列出现在能按的键。自带的几条可以直接试：
+Hold Space for about half a second and a hint window lists the keys you can press. These come built in:
 
-| 按键 | 动作 |
+| Keys | Action |
 | --- | --- |
-| `空格 › E` | 打开资源管理器 |
-| `空格 › N` | 打开或切换到记事本 |
-| `空格 › F › D` | 打开下载文件夹 |
-| `空格 › W › H / L / K / J` | 窗口左半屏 / 右半屏 / 最大化 / 居中，可以连按 |
-| `空格 › Tab` | 切换到上一个窗口 |
-| `空格 › ,` | 打开设置 |
+| `Space › E` | Open File Explorer |
+| `Space › N` | Open or switch to Notepad |
+| `Space › F › D` | Open the Downloads folder |
+| `Space › W › H / L / K / J` | Window to the left half / right half / maximized / centred; can be repeated |
+| `Space › Tab` | Switch to the previous window |
+| `Space › ,` | Open settings |
 
-提示窗出现时：`Esc` 取消，`Backspace` 返回上一级，`/` 搜索全部快捷键。
+While the hint is showing: `Esc` cancels, `Backspace` goes up a level, `/` searches every shortcut.
 
-要新建或修改快捷键，在设置窗口里点键盘图上的任意一个键。
+To create or change a shortcut, click any key on the keyboard in the settings window.
 
 <br clear="right">
 
-## 功能
+## Features
 
-**不妨碍打字**
+**Typing is left alone**
 
-- 轻点空格照常输入；快速打字时下一个键压在空格上不会误触发
-- 按了没有绑定的键，两个键都照常输入
-- `Shift / Ctrl / Alt / Win + 空格` 不受影响；按住空格拖动鼠标（平移画布）照常可用
-- 全屏游戏里自动停用，也可以指定在哪些程序里完全停用
+- A tap of Space types a space; in fast typing, the next key landing on a held Space does not trigger anything
+- A key with no shortcut on it is typed as usual, together with the space
+- `Shift / Ctrl / Alt / Win + Space` are untouched; hold-Space-and-drag (panning a canvas) keeps working
+- Off automatically in full-screen games, and in any apps you list
 
-**快捷键**
+**Shortcuts**
 
-- 一个键，或最多 8 个键的序列；不松开引导键可以连续运行多个
-- 每条可以限定只在某些程序里生效，或排除某些程序
-- 前缀动作：`空格 › G` 运行一个动作，同时 `空格 › G › H` 仍然可用
-- 运行之后可以回到顶层、停在这一层（连按）或结束
-- 保存时提示冲突：相同按键且范围重叠，或被更短的快捷键挡住
+- One key, or a sequence of up to 8; several can run in a row without releasing the leader
+- Each one can be limited to certain apps, or kept out of them
+- Prefix actions: `Space › G` runs something while `Space › G › H` stays reachable
+- After running: back to the top, stay on the level (to repeat), or end
+- Conflicts are pointed out when saving: same keys in overlapping scopes, or a shorter shortcut in the way
 
 <details>
-<summary><b>引导键</b>：空格只是默认值，四种方式可以并存</summary>
+<summary><b>Leader keys</b>: Space is only the default; four kinds can live side by side</summary>
 
-| 方式 | 例子 | 说明 |
+| Kind | Example | How it works |
 | --- | --- | --- |
-| 按住 · 保留轻点 | 空格、字母键 | 轻点照常输入，按住才触发 |
-| 按住 · 专用键 | CapsLock、F12 | 按下立即就绪，不再有原来的功能 |
-| 轻按 · 组合键 | Alt+S | 按一下松开，再依次按触发键 |
-| 轻按 · 单个修饰键 | 右 Ctrl | 单独按一下再按触发键；也可以不带触发键直接运行 |
+| Hold · quick tap kept | Space, a letter | Tap to type as usual, hold for shortcuts |
+| Hold · dedicated key | CapsLock, F12 | Ready on press; the key loses its original function |
+| Tap · combination | Alt+S | Press and release it, then press the trigger keys |
+| Tap · single modifier | Right Ctrl | Tap it alone, then the trigger keys; or run an action with no trigger key |
 
 </details>
 
 <details>
-<summary><b>动作</b>：十二种</summary>
+<summary><b>Actions</b>: twelve kinds</summary>
 
-| 动作 | 说明 |
+| Action | What it does |
 | --- | --- |
-| 打开程序 | 没开就启动，开了就切过去；已在最前时切到它的下一个窗口、最小化或切回上一个程序；可带启动参数；可让几个程序用同一个键轮换 |
-| 打开网址 | 默认浏览器或指定的浏览器 |
-| 文件 / 文件夹 | 可指定用哪个程序打开 |
-| 运行文件 | 脚本、批处理、可执行文件，可带参数 |
-| 运行命令 | cmd 或 PowerShell，可以不显示窗口 |
-| 模拟按键 | 任意组合键；按住触发键会连续重复 |
-| 插入文本 | 逐字键入，或经剪贴板粘贴后恢复剪贴板；支持 `{{cursor}}` `{{clipboard}}` `{{date}}` `{{time}}` |
-| 菜单命令 | 运行当前窗口菜单栏里的某一项，如 `文件->另存为...` |
-| 窗口 | 半屏、三分之一、四分之一、最大化、居中、移到下一个显示器、自定义位置；切换到上一个窗口 |
-| 输入法 | 切换到指定语言的输入法，或下一个 |
-| 通知 | 弹一条通知，点击可以打开网址 |
-| 系统 | 锁定、睡眠、关闭显示器、显示桌面、暂停 SpaceHop |
+| Open app | Start it, or switch to it when it is running; when already in front, go to its next window, minimize, or switch back; arguments; several apps can rotate on one key |
+| Open URL | In the default browser or one you choose |
+| File / folder | Optionally with an app you choose |
+| Run file | Scripts, batch files, executables, with arguments |
+| Run command | cmd or PowerShell, optionally without a window |
+| Keystroke | Any combination; holding the trigger key repeats it |
+| Insert text | Typed, or pasted with the clipboard put back; `{{cursor}}` `{{clipboard}}` `{{date}}` `{{time}}` |
+| Menu command | An item of the front window's menu bar, such as `File->Save As...` |
+| Window | Halves, thirds, quarters, maximize, centre, next display, custom position; switch to the previous window |
+| Input method | Switch to a language's input method, or the next one |
+| Notification | Shows a notification; clicking it can open a URL |
+| System | Lock, sleep, display off, show desktop, pause SpaceHop |
 
 </details>
 
 <details>
-<summary><b>提示窗与管理</b></summary>
+<summary><b>Hint window and housekeeping</b></summary>
 
-- 提示窗：现代 / 经典两种样式，深色 / 浅色或跟随系统；位置可拖到屏幕任意处；出现前的等待时间可调，也可以关掉；用熟了的快捷键显示得淡一些
-- 导出、导入快捷键（合并或替换，重复的可以跳过或覆盖），也可以经剪贴板复制
-- 每次保存自动备份，可以在设置里一键恢复
-- 活动记录：查看每一次按键是怎么判定的（只在内存里，不记输入内容）
+- Hint window: modern or classic style, dark, light or following Windows; drag it anywhere; adjustable delay, or off; shortcuts you know well are shown fainter
+- Export and import shortcuts (merge or replace; duplicates skipped or overwritten), or copy them through the clipboard
+- Every save is backed up; restore with one click in settings
+- Activity log: see how each key press was judged (in memory only; what you type is not recorded)
 
 </details>
 
-## 配置文件
+## Updates
 
-`%APPDATA%\SpaceHop\config.json`。直接编辑并保存即可，SpaceHop 会自动重新载入；内容有问题时会提示并继续使用原来的配置。
+SpaceHop asks GitHub for the newest release about once a day. When there is one, a notice appears and the tray menu offers **Update**; nothing is installed or restarted until you click. The update is downloaded, checked against the release's `SHA256SUMS.txt`, test-started, and only then swapped in; the old file is kept until the new version has run, and put back if it cannot start.
 
-同一目录下的 `config.json.bak` 是上一次保存前的版本，`backups\` 里是带时间的自动备份（最近 30 份）。
+- It sends nothing about you, only an ordinary HTTPS request to `github.com`; the system proxy and certificates are used
+- Turn it off in Settings › About › Check for updates automatically
+- If the folder is not writable (for example `Program Files`), SpaceHop says so and links to the download page
+- The checksum protects against a damaged or tampered download, not against a compromised release; the executable is not code-signed
 
-## 命令行
+## Configuration file
 
-SpaceHop 运行时，再次运行它并带上参数：
+`%APPDATA%\SpaceHop\config.json`. Edit and save it; SpaceHop reloads it by itself. If the content has a problem you are told, and the previous configuration stays in use.
 
-| 参数 | 作用 |
+Next to it, `config.json.bak` is the version before the last save, and `backups\` holds dated automatic backups (the newest 30).
+
+## Command line
+
+While SpaceHop is running, run it again with an argument:
+
+| Argument | Effect |
 | --- | --- |
-| `--settings` | 打开设置 |
-| `--toggle` | 暂停 / 恢复（也有 `--enable`、`--disable`） |
-| `--run "记事本"` | 运行一条快捷键的动作，按名称或 id |
-| `--reload` | 重新读取配置文件 |
-| `--quit` | 退出 |
+| `--settings` | Open settings |
+| `--toggle` | Pause / resume (also `--enable`, `--disable`) |
+| `--run "Notepad"` | Run a shortcut's action by name or id |
+| `--reload` | Read the configuration file again |
+| `--quit` | Quit |
 
-## 已知限制
+## Known limits
 
-- 当前窗口是“以管理员身份运行”的程序时不生效。这是 Windows 的限制；把 SpaceHop 也以管理员身份运行可以解决。
-- 菜单命令只支持带标准菜单栏的程序。浏览器、Office、VS Code 这类自绘界面的程序请用“模拟按键”。
-- 输入法只能按语言切换。同一种语言下装了多个输入法时，Windows 不提供直接指定其中一个的方法。
-- 提示窗里的搜索按键盘字母匹配名称、按键和目标路径，不走输入法，所以中文名称要用路径或按键来搜。
-- 设置窗口目前只能用鼠标操作（输入框和按键录制除外），不支持屏幕阅读器。
-- 暂时没有应用内更新，新版本需要手动替换 exe。
+- Does not work while the front window belongs to a program run as administrator. That is a Windows rule; running SpaceHop as administrator too lifts it.
+- Menu commands need a standard menu bar. For browsers, Office, VS Code and other self-drawn interfaces, use “Keystroke”.
+- Input methods can only be switched by language. With several input methods under one language, Windows offers no way to pick one directly.
+- Search in the hint window matches the letters you press against names, keys and target paths. It does not go through an input method, so search Chinese names by path or keys.
+- The settings window is mouse-only for now (apart from text fields and key recording) and does not support screen readers.
 
-## 从源码构建
+## Build from source
 
-需要 Go 1.22 或更新。任何系统都可以构建，不需要其他工具：
+Go 1.22 or newer. Builds on any system, with no other tools:
 
 ```
 ./build.sh
 ```
 
-产物在 `dist/`。版本号只在 `VERSION` 文件里维护。
+The executables land in `dist/`. The version lives only in the `VERSION` file.
 
-| 目录 | 内容 | 需要 Windows |
+| Directory | Contents | Needs Windows |
 | --- | --- | --- |
-| `internal/engine` | 按键判定：轻点还是按住、序列、搜索 | 否 |
-| `internal/ui`、`internal/raster` | 设置窗口的全部界面逻辑和绘制 | 否 |
-| `internal/win` | 键盘钩子、窗口、托盘和各类动作 | 是 |
+| `internal/engine` | Deciding tap or hold, sequences, search | no |
+| `internal/ui`, `internal/raster` | All logic and drawing of the settings window | no |
+| `internal/win` | Keyboard hook, windows, tray, the actions | yes |
 
 ```
-go test ./...                               逻辑、界面和绘制的测试
-dist\SpaceHop-amd64.exe --selftest out      在 Windows 上真实运行的自检
-dist\SpaceHop-amd64.exe --selftest out ui   只检查设置窗口，不发送任何按键
+go test ./...                               tests of the logic, the interface and the drawing
+dist\SpaceHop-amd64.exe --selftest out      a self-test that really runs on Windows
+dist\SpaceHop-amd64.exe --selftest out ui   settings window only; sends no keys
 ```
 
-自检会真实地按键并检查哪些按键被放行，截取提示窗和设置窗口的每一页，对记事本执行各类动作，并测量键盘钩子和重绘的耗时。CI 在每次提交时构建两种架构并在 Windows 上运行它。在 Mac 上开发时，`tools/vm.sh` 通过 Parallels 在虚拟机里运行同一套自检。
+The self-test presses real keys and checks which ones get through, photographs the hint window and every page of the settings, runs the actions against Notepad, and measures the keyboard hook and redraw times. CI builds both architectures on every commit and runs it on Windows. On a Mac, `tools/vm.sh` runs the same self-test in a Parallels virtual machine.
 
-## 致谢
+## Credit
 
-按住空格作引导键的交互来自 macOS 上的 [SpaceLauncher](https://spacelauncherapp.com/)。SpaceHop 是独立编写的 Windows 程序，与它没有关联。
+Holding Space as a leader key comes from [SpaceLauncher](https://spacelauncherapp.com/) on macOS. SpaceHop is an independently written Windows program and is not affiliated with it.
+
+## License
+
+[MIT](LICENSE).

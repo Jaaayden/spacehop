@@ -32,6 +32,10 @@ type fakeHost struct {
 	cfg   *config.Config
 	saves int
 	later []func()
+
+	upd      config.UpdateInfo
+	checks   int
+	installs int
 }
 
 func (h *fakeHost) Config() *config.Config { return h.cfg }
@@ -68,6 +72,9 @@ func (h *fakeHost) Clipboard() string                      { return "" }
 func (h *fakeHost) SetClipboard(string)                    {}
 func (h *fakeHost) Record(bool)                            {}
 func (h *fakeHost) Invalidate()                            {}
+func (h *fakeHost) UpdateInfo() config.UpdateInfo          { return h.upd }
+func (h *fakeHost) CheckUpdate()                           { h.checks++ }
+func (h *fakeHost) InstallUpdate()                         { h.installs++ }
 
 type rig struct {
 	app  *App
@@ -394,5 +401,46 @@ func TestLeaderModeRoundTrip(t *testing.T) {
 	r.clickText(t, T("轻按"))
 	if l := r.host.cfg.Leaders[0]; l.Key != "Alt+S" {
 		t.Fatalf("%+v", l)
+	}
+}
+
+func TestUpdateCard(t *testing.T) {
+	r := newRig(t)
+	r.app.Goto(pageAbout)
+	for _, st := range []string{"idle", "checking", "uptodate", "error", "downloading"} {
+		r.host.upd = config.UpdateInfo{State: st, Percent: 40, Err: "no route", Page: "https://example.org"}
+		r.frame()
+	}
+	// Nothing found yet: "check now" asks the host.
+	r.host.upd = config.UpdateInfo{State: "idle", Percent: -1}
+	r.frame()
+	r.clickText(t, T("检查更新"))
+	if r.host.checks != 1 {
+		t.Fatalf("checks=%d", r.host.checks)
+	}
+	// A newer version: the button installs it.
+	r.host.upd = config.UpdateInfo{State: "available", Latest: "9.9.9", Percent: -1}
+	r.frame()
+	r.clickText(t, T("更新并重启"))
+	if r.host.installs != 1 {
+		t.Fatalf("installs=%d", r.host.installs)
+	}
+	// The switch turns the daily look off and saves it.
+	if r.host.cfg.NoUpdateCheck {
+		t.Fatal("update check should default to on")
+	}
+	r.host.upd = config.UpdateInfo{State: "idle", Percent: -1}
+	r.frame()
+	lbl, ok := r.find(T("自动检查更新"))
+	if !ok {
+		t.Fatal("update card incomplete")
+	}
+	// The switch sits at the right end of its row: sweep along the row.
+	y := float64(lbl.Y0+lbl.Y1) / 4
+	for x := 900.0; x < 1130 && !r.host.cfg.NoUpdateCheck; x += 8 {
+		r.click(x, y)
+	}
+	if !r.host.cfg.NoUpdateCheck || r.host.saves == 0 {
+		t.Fatalf("NoUpdateCheck=%v saves=%d", r.host.cfg.NoUpdateCheck, r.host.saves)
 	}
 }

@@ -38,12 +38,14 @@ type Config struct {
 	Theme string `json:"theme"`
 	// Leaders are the keys that start a shortcut. The first one is the
 	// default for new bindings.
-	Leaders             []Leader  `json:"leaders"`
-	Timing              Timing    `json:"timing"`
-	Hint                Hint      `json:"hint"`
-	DisabledApps        []string  `json:"disabledApps"`
-	DisableInFullscreen bool      `json:"disableInFullscreen"`
-	Bindings            []Binding `json:"bindings"`
+	Leaders             []Leader `json:"leaders"`
+	Timing              Timing   `json:"timing"`
+	Hint                Hint     `json:"hint"`
+	DisabledApps        []string `json:"disabledApps"`
+	DisableInFullscreen bool     `json:"disableInFullscreen"`
+	// NoUpdateCheck turns the daily look for a newer release off.
+	NoUpdateCheck bool      `json:"noUpdateCheck"`
+	Bindings      []Binding `json:"bindings"`
 
 	// Legacy is the single leader of version 1 files.
 	Legacy *struct {

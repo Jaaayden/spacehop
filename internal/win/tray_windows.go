@@ -131,6 +131,7 @@ const (
 	cmdFolder
 	cmdReload
 	cmdQuit
+	cmdUpdate
 )
 
 func (a *App) trayMenu() {
@@ -148,6 +149,10 @@ func (a *App) trayMenu() {
 	}
 	sep := func() { pAppendMenu.Call(menu, 0x800, 0, 0) }
 	cfg := a.Config()
+	if u := a.UpdateInfo(); u.State == "available" {
+		add(cmdUpdate, i18n.F("有新版本 %s，点这里更新…", u.Latest), false)
+		sep()
+	}
 	add(cmdSettings, i18n.T("快捷键与设置…"), false)
 	add(cmdToggle, i18n.T("启用 SpaceHop"), cfg.Enabled)
 	add(cmdAutostart, i18n.T("开机自动启动"), a.Autostart())
@@ -169,6 +174,8 @@ func (a *App) trayMenu() {
 		a.SetEnabled(!cfg.Enabled)
 	case cmdSettings:
 		a.openSettings()
+	case cmdUpdate:
+		a.openAbout()
 	case cmdAutostart:
 		if err := a.SetAutostart(!a.Autostart()); err != nil {
 			a.Notify(i18n.T("无法修改开机启动：") + err.Error())

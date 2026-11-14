@@ -1,9 +1,11 @@
 package win
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +19,7 @@ import (
 
 	"spacehop/internal/config"
 	"spacehop/internal/ui"
+	"spacehop/internal/update"
 )
 
 // The self-test runs the real program on a real Windows desktop: it presses
@@ -197,6 +200,7 @@ func SelfTest(out, version string, uiOnly bool) int {
 	}
 	ApplyLanguage(cfg)
 	a := &App{Version: version, hookNs: make([]int64, 0, 4096)}
+	a.upd.off = true
 	t := &selfTest{a: a, out: out}
 	theTest = t
 	a.runHook = func(b *config.Binding) {
@@ -514,6 +518,7 @@ func (t *selfTest) settings() {
 	wait(600)
 	pages := 6
 	shots := 0
+	a.updSet(config.UpdateInfo{State: "available", Latest: "9.9.9", Page: "https://example.org", Percent: -1}) // for the About picture
 	for _, v := range []struct{ lang, theme string }{{"zh", "light"}, {"en", "dark"}} {
 		t.apply(func(c *config.Config) { c.Language, c.Theme = v.lang, v.theme })
 		wait(300)
@@ -628,6 +633,9 @@ func (t *selfTest) actions() {
 	t.check("start at login", err1 == nil && err2 == nil && on && !a.Autostart(), "on=%v errors %v %v", on, err1, err2)
 	t.check("clipboard", writeClipboard("spacehop ✓") == nil && func() bool { s, _ := readClipboard(); return s == "spacehop ✓" }(), "round trip")
 	t.check("notification", run(config.Action{Type: config.Notify, Title: "SpaceHop", Text: "self-test"}) == nil, "sent")
+
+	t.updateSwap()
+	t.updateNetwork()
 
 	err := run(config.Action{Type: config.OpenApp, Path: "notepad.exe"})
 	var np uintptr
@@ -757,4 +765,61 @@ func (t *selfTest) shot(name string) {
 		_ = png.Encode(f, img)
 		f.Close()
 	}
+}
+
+// updateSwap checks, with a copy of this very program, what an update relies
+// on: a new copy starts, and a program that is running can be replaced.
+func (t *selfTest) updateSwap() {
+	self, err := os.Executable()
+	if err != nil {
+		t.check("update: replace a running program", false, "%v", err)
+		return
+	}
+	data, err := os.ReadFile(self)
+	if err != nil {
+		t.check("update: replace a running program", false, "%v", err)
+		return
+	}
+	dir, _ := os.MkdirTemp("", "spacehop-update")
+	defer os.RemoveAll(dir)
+	exe := filepath.Join(dir, "SpaceHop.exe")
+	fresh := update.NewPath(exe)
+	_ = os.WriteFile(exe, data, 0o755)
+	_ = os.WriteFile(fresh, append(append([]byte{}, data...), 0), 0o755) // a different file that still runs
+
+	perr := exec.Command(fresh, "--probe").Run()
+	t.check("update: new program starts", perr == nil, "--probe exit: %v", perr)
+
+	hold := exec.Command(exe, "--probe-hold")
+	if err := hold.Start(); err != nil {
+		t.check("update: replace a running program", false, "%v", err)
+		return
+	}
+	defer func() { _ = hold.Process.Kill(); _ = hold.Wait() }()
+	time.Sleep(300 * time.Millisecond) // let it load
+	old, serr := update.Swap(exe, fresh)
+	now, _ := os.ReadFile(exe)
+	prev, _ := os.ReadFile(old)
+	t.check("update: replace a running program", serr == nil && len(now) == len(data)+1 && len(prev) == len(data), "swap error %v, new %d bytes, kept %d bytes", serr, len(now), len(prev))
+
+	if _, rerr := update.Rollback(exe); rerr == nil {
+		back, _ := os.ReadFile(exe)
+		t.check("update: roll back", len(back) == len(data), "restored %d bytes", len(back))
+	} else {
+		t.check("update: roll back", false, "%v", rerr)
+	}
+}
+
+// updateNetwork checks the WinHTTP client against GitHub's public API.
+func (t *selfTest) updateNetwork() {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	resp, err := winGet(ctx, "https://api.github.com/", "application/vnd.github+json")
+	if err != nil {
+		t.logf("SKIP", "update: https request", "no answer from GitHub (offline?): %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	t.check("update: https request", resp.Status == 200 && strings.Contains(string(b), "current_user_url"), "status %d, %d bytes", resp.Status, len(b))
 }
